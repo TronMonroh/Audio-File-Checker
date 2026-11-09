@@ -61,7 +61,7 @@ const FORMAT_EXTENSIBLE = 0xfffe;
 const FORMAT_NAMES = {
   2: 'Microsoft ADPCM',
   6: 'A-law',
-  7: 'µ-law',
+  7: 'µ-law', // µ-law, written as a code so any file encoding works
   0x11: 'IMA ADPCM',
   0x55: 'MP3',
 };

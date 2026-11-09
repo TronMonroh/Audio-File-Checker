@@ -1,0 +1,225 @@
+/* styles.css: plain, readable styles. Status is always shown with an icon
+   and a word as well as color, so color is never the only signal. */
+
+:root {
+  --text: #1a1a1a;
+  --muted: #555;
+  --background: #ffffff;
+  --panel: #f5f5f5;
+  --border: #cccccc;
+  --focus: #1a5fb4;
+  --pass: #1e7b34;
+  --pass-bg: #e8f5ea;
+  --warning: #8a5a00;
+  --warning-bg: #fff4dc;
+  --fail: #b3261e;
+  --fail-bg: #fdecea;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #eeeeee;
+    --muted: #b5b5b5;
+    --background: #161616;
+    --panel: #232323;
+    --border: #444444;
+    --focus: #8ab4f8;
+    --pass: #7fd48f;
+    --pass-bg: #16301c;
+    --warning: #f2c46d;
+    --warning-bg: #3a2c0d;
+    --fail: #f28b82;
+    --fail-bg: #3d1a17;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 2rem 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--background);
+}
+
+main {
+  max-width: 50rem;
+  margin: 0 auto;
+}
+
+h1 {
+  margin-top: 0;
+}
+
+.lead {
+  font-size: 1.125rem;
+}
+
+.privacy {
+  padding: 0.75rem 1rem;
+  background: var(--panel);
+  border-left: 4px solid var(--pass);
+}
+
+.hint {
+  display: block;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+fieldset {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+legend {
+  padding: 0 0.5rem;
+  font-weight: bold;
+  font-size: 1.125rem;
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.choice input {
+  margin-top: 0.3rem;
+}
+
+.drop-zone {
+  padding: 1.5rem;
+  text-align: center;
+  border: 2px dashed var(--border);
+  border-radius: 6px;
+}
+
+.drop-zone.dragging {
+  border-color: var(--focus);
+  background: var(--panel);
+}
+
+.drop-zone label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+button,
+input[type="file"] {
+  font: inherit;
+}
+
+button {
+  margin-top: 0.75rem;
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Results */
+
+.file {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-left-width: 6px;
+  border-radius: 6px;
+}
+
+.file h3 {
+  margin: 0 0 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.file-pass { border-left-color: var(--pass); }
+.file-warning { border-left-color: var(--warning); }
+.file-fail { border-left-color: var(--fail); }
+
+.audio-info {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0 0.5rem;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.badge-pass { color: var(--pass); background: var(--pass-bg); }
+.badge-warning { color: var(--warning); background: var(--warning-bg); }
+.badge-fail { color: var(--fail); background: var(--fail-bg); }
+.badge-skipped { color: var(--muted); background: var(--panel); }
+
+.problems {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.problem {
+  margin: 0.5rem 0;
+}
+
+.problem p {
+  margin: 0;
+}
+
+.fix {
+  margin-left: 1rem !important;
+}
+
+.unconfirmed {
+  color: var(--muted);
+  font-style: italic;
+}
+
+details {
+  margin-top: 0.75rem;
+}
+
+summary {
+  cursor: pointer;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  margin-top: 0.5rem;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+
+.not-checked {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
