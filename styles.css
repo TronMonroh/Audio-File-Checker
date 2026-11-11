@@ -1,5 +1,5 @@
-/* styles.css: plain, readable styles. Status is always shown with an icon
-   and a word as well as color, so color is never the only signal. */
+/* styles.css: plain, readable styles. The green/red result is always stated
+   in words as well as color, so color is never the only signal. */
 
 :root {
   --text: #1a1a1a;
@@ -8,12 +8,10 @@
   --panel: #f5f5f5;
   --border: #cccccc;
   --focus: #1a5fb4;
-  --pass: #1e7b34;
-  --pass-bg: #e8f5ea;
-  --warning: #8a5a00;
-  --warning-bg: #fff4dc;
-  --fail: #b3261e;
-  --fail-bg: #fdecea;
+  --green: #1e7b34;
+  --green-bg: #e8f5ea;
+  --red: #b3261e;
+  --red-bg: #fdecea;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -24,12 +22,10 @@
     --panel: #232323;
     --border: #444444;
     --focus: #8ab4f8;
-    --pass: #7fd48f;
-    --pass-bg: #16301c;
-    --warning: #f2c46d;
-    --warning-bg: #3a2c0d;
-    --fail: #f28b82;
-    --fail-bg: #3d1a17;
+    --green: #7fd48f;
+    --green-bg: #16301c;
+    --red: #f28b82;
+    --red-bg: #3d1a17;
   }
 }
 
@@ -47,9 +43,18 @@ body {
   background: var(--background);
 }
 
+header,
 main {
   max-width: 50rem;
   margin: 0 auto;
+}
+
+.brand {
+  margin: 0;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 h1 {
@@ -63,13 +68,13 @@ h1 {
 .privacy {
   padding: 0.75rem 1rem;
   background: var(--panel);
-  border-left: 4px solid var(--pass);
+  border-left: 4px solid var(--green);
 }
 
 .hint {
-  display: block;
   color: var(--muted);
   font-size: 0.9rem;
+  margin: -1rem 0 1.5rem;
 }
 
 fieldset {
@@ -87,20 +92,20 @@ legend {
 
 .choice {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.5rem;
-  margin: 0.5rem 0;
-}
-
-.choice input {
-  margin-top: 0.3rem;
+  margin: 0.4rem 0;
 }
 
 .drop-zone {
-  padding: 1.5rem;
+  padding: 2rem 1rem;
   text-align: center;
   border: 2px dashed var(--border);
   border-radius: 6px;
+}
+
+.drop-zone p {
+  margin: 0.25rem 0;
 }
 
 .drop-zone.dragging {
@@ -108,20 +113,15 @@ legend {
   background: var(--panel);
 }
 
-.drop-zone label {
-  display: block;
-  margin-bottom: 0.5rem;
+.drop-text {
+  font-size: 1.25rem;
   font-weight: bold;
 }
 
-button,
-input[type="file"] {
-  font: inherit;
-}
-
 button {
-  margin-top: 0.75rem;
-  padding: 0.4rem 1rem;
+  font: inherit;
+  margin-top: 0.5rem;
+  padding: 0.5rem 1.25rem;
   cursor: pointer;
 }
 
@@ -130,55 +130,89 @@ button {
   outline-offset: 2px;
 }
 
-/* Results */
+/* Result */
 
-.file {
-  margin: 1rem 0;
+.light {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   padding: 1rem;
-  border: 1px solid var(--border);
-  border-left-width: 6px;
-  border-radius: 6px;
+  border: 2px solid;
+  border-radius: 8px;
 }
 
-.file h3 {
-  margin: 0 0 0.25rem;
+.light p {
+  margin: 0;
+}
+
+.light-green {
+  color: var(--green);
+  background: var(--green-bg);
+}
+
+.light-red {
+  color: var(--red);
+  background: var(--red-bg);
+}
+
+.lamp {
+  flex: none;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.light-word {
+  font-size: 1.375rem;
+  font-weight: bold;
+}
+
+.headline {
+  color: var(--text);
+}
+
+.file-name {
   overflow-wrap: anywhere;
 }
 
-.file-pass { border-left-color: var(--pass); }
-.file-warning { border-left-color: var(--warning); }
-.file-fail { border-left-color: var(--fail); }
-
-.audio-info {
-  margin: 0 0 0.75rem;
-  color: var(--muted);
+.note {
+  padding: 0.5rem 0.75rem;
+  background: var(--panel);
 }
 
-.badge {
-  display: inline-block;
-  padding: 0 0.5rem;
-  border-radius: 4px;
-  font-weight: bold;
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
-
-.badge-pass { color: var(--pass); background: var(--pass-bg); }
-.badge-warning { color: var(--warning); background: var(--warning-bg); }
-.badge-fail { color: var(--fail); background: var(--fail-bg); }
-.badge-skipped { color: var(--muted); background: var(--panel); }
-
-.problems {
+.detected {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.5rem;
   margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
-.problem {
+.detected div {
+  padding: 0.5rem 0.75rem;
+  background: var(--panel);
+  border-radius: 6px;
+}
+
+.detected dt {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.detected dd {
+  margin: 0;
+  font-weight: bold;
+}
+
+.reasons {
+  padding-left: 1.25rem;
+}
+
+.reasons li {
   margin: 0.5rem 0;
 }
 
-.problem p {
+.reasons p {
   margin: 0;
 }
 
@@ -186,13 +220,8 @@ button {
   margin-left: 1rem !important;
 }
 
-.unconfirmed {
-  color: var(--muted);
-  font-style: italic;
-}
-
 details {
-  margin-top: 0.75rem;
+  margin-top: 1.25rem;
 }
 
 summary {
@@ -218,7 +247,16 @@ td {
   border-bottom: 1px solid var(--border);
 }
 
-.not-checked {
+.status {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.status-pass { color: var(--green); }
+.status-fail { color: var(--red); }
+.status-skipped { color: var(--muted); }
+
+.howto {
   margin-top: 2.5rem;
   padding-top: 1rem;
   border-top: 1px solid var(--border);

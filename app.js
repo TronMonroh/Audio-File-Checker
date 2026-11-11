@@ -1,20 +1,19 @@
 // app.js
-// Everything the page does: showing the board choices, reading the files
-// the user picks, and displaying results.
+// Everything the page does: showing the product choices, reading the file
+// the user drops or selects, and displaying the result.
 //
-// All the actual checking is done by validator.js. This file only reads
-// files from the user's computer and shows what validator.js says.
+// All the actual checking is done by validator.js. This file only reads the
+// start of the file on the user's computer and shows what validator.js says.
 // Nothing is sent anywhere.
 
-// The files the user has chosen, as { name, bytes }. Kept so the results
-// can be re-checked if the user switches boards.
-let chosenFiles = [];
+// The file being checked, as { name, size, bytes }, or null. Kept so the file
+// can be rechecked when the user switches products (decision C).
+let chosenFile = null;
+// True when several files were dropped and only the first was checked.
+let extraFilesIgnored = false;
 
-// Icons are written as codes (✓ is a check mark) so they display
-// correctly even if a web host sends this file with the wrong encoding.
-const STATUS_TEXT = {
+const CHECK_STATUS_TEXT = {
   pass: { icon: '✓', word: 'Pass' }, // ✓
-  warning: { icon: '!', word: 'Warning' },
   fail: { icon: '✗', word: 'Fail' }, // ✗
   skipped: { icon: '–', word: 'Not checked' }, // –
 };
@@ -37,15 +36,6 @@ function el(tag, options = {}, children = []) {
   return node;
 }
 
-// A status shown as an icon plus a word, so it is readable without color.
-function statusBadge(status) {
-  const text = STATUS_TEXT[status];
-  return el('span', { className: `badge badge-${status}` }, [
-    el('span', { text: text.icon, attrs: { 'aria-hidden': 'true' } }),
-    ` ${text.word}`,
-  ]);
-}
-
 // ---------------------------------------------------------------------------
 // Setting up the page
 // ---------------------------------------------------------------------------
@@ -55,20 +45,16 @@ function showProductChoices() {
   for (const profile of Object.values(PROFILES)) {
     const id = `product-${profile.id}`;
     const input = el('input', { attrs: { type: 'radio', name: 'product', id, value: profile.id } });
-    input.addEventListener('change', showResults);
-
-    const label = el('label', { attrs: { for: id } }, [el('strong', { text: profile.name })]);
-    if (profile.note) {
-      label.append(el('span', { className: 'hint', text: profile.note }));
-    }
+    input.addEventListener('change', showResult); // Recheck on product change
+    const label = el('label', { text: profile.name, attrs: { for: id } });
     fieldset.append(el('div', { className: 'choice' }, [input, label]));
   }
 }
 
-function showNotChecked() {
-  const list = document.getElementById('not-checked-list');
-  for (const item of NOT_CHECKED) {
-    list.append(el('li', {}, [el('strong', { text: `${item.topic}: ` }), item.detail]));
+function showHowToSteps() {
+  const list = document.getElementById('howto-steps');
+  for (const step of GENERAL_AUDACITY_STEPS) {
+    list.append(el('li', { text: step }));
   }
 }
 
@@ -78,114 +64,126 @@ function selectedProfile() {
 }
 
 // ---------------------------------------------------------------------------
-// Reading files from the user's computer
+// Reading the file from the user's computer
 // ---------------------------------------------------------------------------
 
-async function useFiles(fileList) {
-  const files = Array.from(fileList);
-  chosenFiles = [];
-  for (const file of files) {
-    try {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      chosenFiles.push({ name: file.name, bytes });
-    } catch (error) {
-      chosenFiles.push({ name: file.name, bytes: null });
-    }
+async function useFile(file, othersIgnored) {
+  try {
+    // Only the start of the file is read (Jamie's rule, decision D).
+    const bytes = new Uint8Array(await file.slice(0, READ_BYTES).arrayBuffer());
+    chosenFile = { name: file.name, size: file.size, bytes };
+  } catch (error) {
+    chosenFile = { name: file.name, size: file.size, bytes: null };
   }
-  // Show files in name order, which is usually track order.
-  chosenFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-  showResults();
+  extraFilesIgnored = othersIgnored;
+  showResult();
 }
 
-function clearFiles() {
-  chosenFiles = [];
+// Forget the file, e.g. when the page is shown again after back/forward.
+function clearFile() {
+  chosenFile = null;
+  extraFilesIgnored = false;
   document.getElementById('file-input').value = '';
-  showResults();
+  showResult();
 }
 
 // ---------------------------------------------------------------------------
-// Showing results
+// Showing the result
 // ---------------------------------------------------------------------------
 
-function showResults() {
-  const section = document.getElementById('results');
-  const summary = document.getElementById('summary');
-  const container = document.getElementById('file-results');
-  container.replaceChildren();
+function showResult() {
+  const section = document.getElementById('result');
+  const body = document.getElementById('result-body');
+  body.replaceChildren();
 
-  document.getElementById('clear-button').hidden = chosenFiles.length === 0;
-
-  if (chosenFiles.length === 0) {
+  if (!chosenFile) {
     section.hidden = true;
     return;
   }
   section.hidden = false;
 
+  if (extraFilesIgnored) {
+    body.append(el('p', { className: 'note', text: 'Only the first file was checked. Check one file at a time.' }));
+  }
+
   const profile = selectedProfile();
   if (!profile) {
-    summary.textContent = `${chosenFiles.length} file(s) chosen. Choose your board above to see results.`;
+    body.append(el('p', { text: `Choose your product above to check ${chosenFile.name}.` }));
     return;
   }
 
-  const readable = chosenFiles.filter((f) => f.bytes !== null);
-  const unreadable = chosenFiles.filter((f) => f.bytes === null);
-  const results = validateFiles(readable, profile);
-
-  const counts = { pass: 0, warning: 0, fail: 0 };
-  for (const r of results) counts[r.status]++;
-  counts.fail += unreadable.length;
-
-  const fileWord = chosenFiles.length === 1 ? 'file' : 'files';
-  summary.textContent =
-    `${chosenFiles.length} ${fileWord} checked for ${profile.name}: ` +
-    `${counts.pass} pass, ${counts.warning} warning, ${counts.fail} fail.`;
-
-  for (const name of unreadable.map((f) => f.name)) {
-    container.append(
-      el('article', { className: 'file file-fail' }, [
-        el('h3', {}, [statusBadge('fail'), ` ${name}`]),
-        el('p', { text: 'This file could not be read. Try selecting it again.' }),
-      ])
-    );
+  if (chosenFile.bytes === null) {
+    body.append(el('p', { text: `${chosenFile.name} could not be read. Try selecting it again.` }));
+    return;
   }
-  for (const result of results) {
-    container.append(fileResult(result));
-  }
-}
 
-// One-line summary of the audio, e.g. "Stereo, 44.1kHz, 16-bit".
-function describeAudio(info) {
-  if (info.channels === null) return null;
-  const channels = info.channels === 1 ? 'Mono' : info.channels === 2 ? 'Stereo' : `${info.channels} channels`;
-  return `${channels}, ${formatSampleRate(info.sampleRate)}, ${info.bitsPerSample}-bit`;
-}
+  const result = validateFile(chosenFile.bytes, chosenFile.name, profile, chosenFile.size);
+  const isGreen = result.result === 'green';
 
-function fileResult(result) {
-  const article = el('article', { className: `file file-${result.status}` });
-  article.append(el('h3', {}, [statusBadge(result.status), ` ${result.filename}`]));
+  // The light, stated in words as well as color.
+  body.append(
+    el('div', { className: `light light-${result.result}` }, [
+      el('span', { className: 'lamp', attrs: { 'aria-hidden': 'true' } }),
+      el('div', {}, [
+        el('p', { className: 'light-word', text: isGreen ? 'Green light: will play' : "Red light: won't play" }),
+        el('p', { className: 'headline', text: result.headline }),
+      ]),
+    ])
+  );
+  body.append(el('p', { className: 'file-name' }, [el('strong', { text: 'File: ' }), chosenFile.name]));
 
-  const audio = describeAudio(result.info);
-  if (audio) article.append(el('p', { className: 'audio-info', text: audio }));
+  body.append(detectedValues(result.detected));
 
-  // Problems first, each with its fix.
-  const problems = result.checks.filter((c) => c.status === 'fail' || c.status === 'warning');
-  if (problems.length > 0) {
-    const list = el('ul', { className: 'problems' });
-    for (const check of problems) {
-      const unconfirmed = check.confirmed ? null : el('span', { className: 'unconfirmed', text: ' (rule not yet confirmed)' });
+  // Red: every reason, each with its fix.
+  if (!isGreen) {
+    body.append(el('h3', { text: "Why it won't play" }));
+    const list = el('ul', { className: 'reasons' });
+    for (const reason of result.reasons) {
       list.append(
-        el('li', { className: `problem problem-${check.status}` }, [
-          el('p', {}, [statusBadge(check.status), ' ', el('strong', { text: `${check.label}: ` }), check.message, unconfirmed]),
-          el('p', { className: 'fix' }, [el('strong', { text: 'Fix: ' }), check.fix]),
+        el('li', {}, [
+          el('p', {}, [el('strong', { text: `${reason.label}: ` }), reason.message]),
+          el('p', { className: 'fix' }, [el('strong', { text: 'Fix: ' }), reason.fix]),
         ])
       );
     }
-    article.append(list);
-  } else {
-    article.append(el('p', { text: 'Every check passed.' }));
+    body.append(list);
   }
 
-  // Every check, so the user can see what was and was not checked.
+  if (result.audacitySteps.length > 0) {
+    body.append(el('h3', { text: 'How to fix it in Audacity' }));
+    body.append(el('ol', {}, result.audacitySteps.map((step) => el('li', { text: step }))));
+  }
+
+  body.append(allChecksTable(result.checks));
+}
+
+// Channels, sample rate, bit depth and metadata, shown for green and red.
+function detectedValues(detected) {
+  const unknown = 'Could not tell';
+  let channels = unknown;
+  if (detected.channels === 1) channels = 'Mono';
+  else if (detected.channels === 2) channels = 'Stereo';
+  else if (detected.channels !== null) channels = `${detected.channels} channels`;
+
+  let metadata = unknown;
+  if (detected.metadataBeforeAudio === true) metadata = 'Yes';
+  if (detected.metadataBeforeAudio === false) metadata = 'No';
+
+  const rows = [
+    ['Channels', channels],
+    ['Sample rate', detected.sampleRate === null ? unknown : formatSampleRate(detected.sampleRate)],
+    ['Bit depth', detected.bitsPerSample === null ? unknown : `${detected.bitsPerSample}-bit`],
+    ['Metadata before the audio', metadata],
+  ];
+  const list = el('dl', { className: 'detected' });
+  for (const [name, value] of rows) {
+    list.append(el('div', {}, [el('dt', { text: name }), el('dd', { text: value })]));
+  }
+  return el('div', {}, [el('h3', { text: 'What was found' }), list]);
+}
+
+// Every v1 check, so the user can see what was checked.
+function allChecksTable(checks) {
   const details = el('details', {}, [el('summary', { text: 'Show all checks' })]);
   const table = el('table', {}, [
     el('thead', {}, [
@@ -197,29 +195,37 @@ function fileResult(result) {
       ]),
     ]),
   ]);
-  const body = el('tbody');
-  for (const check of result.checks) {
-    body.append(
+  const tbody = el('tbody');
+  for (const check of checks) {
+    const status = CHECK_STATUS_TEXT[check.status];
+    tbody.append(
       el('tr', {}, [
         el('td', { text: check.group }),
         el('td', { text: check.label }),
-        el('td', {}, [statusBadge(check.status)]),
+        el('td', { className: `status status-${check.status}` }, [
+          el('span', { text: status.icon, attrs: { 'aria-hidden': 'true' } }),
+          ` ${status.word}`,
+        ]),
         el('td', { text: check.message }),
       ])
     );
   }
-  table.append(body);
+  table.append(tbody);
   details.append(el('div', { className: 'table-wrap' }, [table]));
-  article.append(details);
-
-  return article;
+  return details;
 }
 
 // ---------------------------------------------------------------------------
 // Wiring up the page
 // ---------------------------------------------------------------------------
 
-function setUpDropZone() {
+function setUpFileInputs() {
+  const input = document.getElementById('file-input');
+  document.getElementById('select-button').addEventListener('click', () => input.click());
+  input.addEventListener('change', () => {
+    if (input.files.length > 0) useFile(input.files[0], false);
+  });
+
   const zone = document.getElementById('drop-zone');
   zone.addEventListener('dragover', (event) => {
     event.preventDefault();
@@ -230,7 +236,8 @@ function setUpDropZone() {
   zone.addEventListener('drop', (event) => {
     event.preventDefault();
     zone.classList.remove('dragging');
-    useFiles(event.dataTransfer.files);
+    const files = event.dataTransfer.files;
+    if (files.length > 0) useFile(files[0], files.length > 1);
   });
 
   // Stop a file dropped just outside the zone from opening in the browser.
@@ -239,7 +246,10 @@ function setUpDropZone() {
 }
 
 showProductChoices();
-showNotChecked();
-setUpDropZone();
-document.getElementById('file-input').addEventListener('change', (event) => useFiles(event.target.files));
-document.getElementById('clear-button').addEventListener('click', clearFiles);
+showHowToSteps();
+setUpFileInputs();
+
+// When the page is shown again (browser back or forward), forget the file,
+// so a file name never shows without its result. "pageshow" also fires on
+// the first load, which is harmless.
+window.addEventListener('pageshow', clearFile);

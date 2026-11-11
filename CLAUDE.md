@@ -2,18 +2,41 @@
 
 ## What this is
 
-A standalone web app that answers one question for Robertsonics customers: **"Will these files play on my board?"**
+A standalone web app that answers one question for Robertsonics customers: **"Will this file play on my board?"**
 
-It replaces the file-check utility currently on robertsonics.com/technical. It is built by Seth (contractor) for Robertsonics (Jamie Robertson). Either Jamie or Seth will host it.
+It replaces the file-check utility currently on robertsonics.com/technical. It is built by Seth (contractor) for Robertsonics (Jamie Robertson) and hosted on Seth's GitHub (GitHub Pages).
 
-Robertsonics players fail silently. A file in the wrong format is simply ignored, with no error. This app exists to turn that silence into a clear pass or fail with a specific fix.
+Robertsonics players fail silently. A file in the wrong format is simply ignored, with no error. This app turns that silence into a clear **green light** (will play) or **red light** (won't play, and here's how to fix it).
+
+## User flow (v1)
+
+The flow, product list, red/green result, Audacity guidance, logo, and "only check the beginning of the file" rule are **Jamie's requirements**. Do not change them without Seth's approval.
+
+1. **"Which product are you using?"** User picks one:
+   * WAV Trigger
+   * Tsunami Mono
+   * Tsunami Stereo
+   * WAV Trigger Pro
+2. **Drag and drop a WAV file** onto the page (a "Select file" button is also provided as a fallback).
+3. **Analyze.** The app reads the beginning of the file and checks it against the selected product.
+4. **Result: green light or red light.**
+   * Green: "This file will play on your [product]."
+   * Red: each problem listed in plain English, with a fix.
+   * In both cases, also show what was detected: channels, sample rate, bit depth, and whether metadata was found before the audio. (The current utility shows these values; keep them so v1 doesn't regress.)
+5. **Audacity help.** On a red light, show how to fix the file in Audacity (see "Audacity guidance"). Also available as a short "How to create a compatible file" section on the page.
+
+The page displays **Jamie's Robertsonics logo** in the header.
+
+Tsunami Mono and Tsunami Stereo are separate products because users can load either firmware (Jamie's decision). Add a one-line hint under the picker: "Not sure? The Qwiic Tsunami ships with mono firmware."
 
 ## Hard requirements
 
 * **Files never leave the user's computer.** Jamie's requirement: the app opens local files; it does not upload them. All parsing happens in the browser.
-* **No server, no network calls.** The app is static files only. Enforce this with a Content Security Policy meta tag (`connect-src 'none'`). No analytics, no CDNs, no external fonts.
-* **No AI in v1.** Keep v1 simple and deterministic: the same file always gets the same result. AI may return in a later version if it proves useful.
-* **v1 must not regress from the current utility.** Before v1 ships, confirm what the current robertsonics.com checker detects and reports, and match it at minimum. (The current page accepts .mp3 files; confirm whether it actually checks them.)
+* **No server, no network calls.** Static files only. Enforce with a Content Security Policy meta tag (`connect-src 'none'`). No analytics, no CDNs, no external fonts.
+* **Only check the beginning of the file (Jamie).** Anything after the audio data is never looked at by the players, so the app never looks at it either. Read only the first few KB with `file.slice()`.
+* **Binary result (Jamie).** Green or red only. No "warning" state.
+* **No AI in v1.**
+* **Accept `.wav` in any letter case** (`.wav`, `.WAV`). The current utility rejects `.WAV`; don't repeat that.
 
 ## Tech stack
 
@@ -21,97 +44,133 @@ Keep it simple. Seth is new to app development, so favor plain, readable code ov
 
 * Plain HTML, CSS and JavaScript. No framework, no build step, no npm dependencies.
 * `index.html`: the page and UI.
-* `validator.js`: the checking logic as pure functions (bytes and filename in, results out). No DOM access, so it can be tested on its own.
-* `profiles.js`: device rules as a data object, one entry per product. Adding a product should mean adding data, not code.
+* `validator.js`: the checking logic as pure functions (header bytes and filename in; result out). No DOM access, so it can be tested on its own.
+* `profiles.js`: device rules as a data object, one entry per product.
+* `assets/`: Jamie's logo (original file supplied by Jamie).
+* `reference/current-utility.js`: the existing website utility, kept for comparison only. Do not copy its parsing logic (see "Known problems in the current utility").
 * `tests/`: tests run with Node's built-in test runner (`node --test`). No test framework.
-* Hosting: any static host (Jamie's Squarespace site, GitHub Pages, or similar). Hosting must not require code changes.
+* **Node.js is a development tool only**, installed on Seth's Mac for running tests and generating test files. The app itself never needs Node, npm or any package. Never add a `package.json` dependency.
+* **`index.html` must work when opened directly from the file system** (double-click, `file://`), with no web server. Load scripts with plain `<script src="...">` tags, not JavaScript modules (`type="module"` and `import` are blocked on `file://`). This is how Jamie tests the app before launch: download ZIP, unzip, double-click.
+* `.gitignore` excludes macOS `.DS_Store` files.
+* Hosting: GitHub Pages on Seth's GitHub. Plain static files in the repo root, no build step. Use relative paths only, so a custom domain can be added later without code changes.
+* The repo stays **private** during development. Jamie is added as a collaborator and gives feedback through GitHub Issues. At launch the repo becomes public so Pages can serve it (license to be agreed with Jamie first).
 
-## Device profiles
+## The rule (v1)
 
-Status key: **Confirmed** means it is in Robertsonics or SparkFun documentation. **TBD** means it must be confirmed with Jamie before it is enforced as a hard failure. Treat TBD rules as warnings, not failures.
+Jamie confirmed: the `fmt ` chunk must be exactly 16 bytes, nothing may come before the audio data, and anything after the audio data is ignored. Together that means **a green file has the canonical 44-byte WAV header**:
 
-| Product | Format | Channels | Track numbers | Init / preset files |
-|---|---|---|---|---|
-| WAV Trigger | 16-bit, 44.1kHz PCM (Confirmed) | Stereo (Confirmed in user guide; confirm whether mono is supported in current firmware) | 1 to 4096 (Confirmed) | `wavtrigr.ini` in root (Confirmed) |
-| Tsunami, mono firmware | 16-bit, 44.1kHz PCM (Confirmed) | Mono (Confirmed) | 1 to 4096 (Confirmed) | `tsunami.ini` in root (Confirmed) |
-| Tsunami, stereo firmware | 16-bit, 44.1kHz PCM (Confirmed) | Stereo (Confirmed) | 1 to 4096 (Confirmed) | `tsunami.ini` in root (Confirmed) |
-| WAV Trigger Pro | 16-bit, 44.1kHz PCM (Confirmed) | Mono or stereo, mixed freely (Confirmed) | 4-digit prefix, e.g. `0123_piano.wav` (Confirmed) | Presets `set_0001.csv` style (Confirmed); card should hold only .wav and .csv files |
-| Tsunami Pro | TBD (unreleased) | TBD | TBD | TBD |
-| MP3 Trigger | Not in v1 | | | |
+| Bytes | Must be |
+|---|---|
+| 0 to 3 | `RIFF` |
+| 8 to 11 | `WAVE` |
+| 12 to 15 | `fmt ` |
+| 16 to 19 | fmt chunk size = 16 |
+| 20 to 21 | Audio format = 1 (PCM) |
+| 22 to 23 | Channels, as the product requires |
+| 24 to 27 | Sample rate = 44100 |
+| 34 to 35 | Bits per sample = 16 |
+| 36 to 39 | `data` |
 
-Notes:
-* The Qwiic Tsunami ships with **mono** firmware by default. A stereo file on a mono board is a common silent failure. The UI must make the firmware choice obvious.
-* Filename separators differ in practice. Tsunami docs show `1-Music Loop 21.wav` as valid. A WAV Trigger user's `0001 Track.wav` (space) failed and `0001_Track.wav` worked. Exact parsing rules per product are **TBD with Jamie**.
+So the pass/fail decision needs only the first 44 bytes. Read a few KB anyway, and walk the chunk list only to **explain** a red light (for example, "Found a LIST metadata chunk before the audio"). If the walk reaches the end of the bytes read without finding `data`, report a large metadata block before the audio.
 
-## v1 scope
+### Red-light reasons and fixes
 
-User picks a product, selects one or more .wav files from disk, and gets a result per file.
+Report every reason that applies, not just the first:
 
-### Checks
+* Not a WAV file (no `RIFF`/`WAVE`).
+* Metadata before the audio (any chunk other than `fmt ` before `data`, including a chunk before `fmt `). Name the chunk if found.
+* fmt chunk is not 16 bytes (common with 18-byte or extensible headers from some software).
+* Not PCM (format code 3 is 32-bit float; 0xFFFE is extensible).
+* Not 16-bit.
+* Not 44.1kHz.
+* Wrong channel count for the product.
 
-**File structure**
-* Starts with `RIFF` and `WAVE`.
-* RIFF size and data chunk size are consistent with the actual file length (catches truncated files).
-* Has exactly one `fmt ` chunk and one `data` chunk.
+Each reason gets a one-line, plain-English fix that points to the Audacity steps.
 
-**Audio format**
-* Format code is 1 (PCM). Flag `WAVE_FORMAT_EXTENSIBLE` (0xFFFE) and 32-bit float as failures, with a fix.
-* Bit depth is 16.
-* Sample rate is 44100.
-* Channel count matches the selected product.
+### Decisions (approved by Seth, 2026-11-10)
 
-**Metadata ("no additional header information")**
-* Any chunk other than `fmt ` and `data` (for example `LIST`, `bext`, `id3 `, `JUNK`, `cue `, `smpl`) is a failure.
-* TBD with Jamie: whether the firmware requires the exact canonical 44-byte header (16-byte `fmt ` chunk, `data` starting at byte 36), or only the absence of extra chunks. Until confirmed, report a non-canonical layout as a warning.
+These settle cases "The rule" leaves open. They change only what the app **says** or how it reads files, except B, which adds a red reason.
 
-**Filename**
-* Ends in `.wav` (case-insensitive).
-* Begins with a track number in the product's valid range.
-* Separator after the number follows the product's rule (TBD, warning until confirmed).
+* **A. Missing chunks.** If the read reached the real end of the file without finding `data`, say "No audio data found" (not "large metadata block"). Same idea for a missing `fmt ` chunk: say no format information was found. Both are red.
+* **B. File extension (Seth's decision, pending Jamie).** Red if the file name does not end in `.wav` (any case), with the fix "Rename the file to end in .wav." This is the one filename check in v1. Keep it in its own function and check id, separate from the header checks, so it can be removed in one small change if Jamie decides against it.
+* **C. Checking is automatic.** Check as soon as a file is dropped or selected (no Analyze button), and recheck automatically when the product changes.
+* **D. Read the first 4KB** (4096 bytes) of the file. This only affects how far the app can explain a metadata block; the red/green decision needs just the first 44 bytes.
+* **E. "Show all checks" table.** Keep it, listing only the v1 rules above (plus B).
+* **F. Logo.** Text title until Jamie's logo file arrives. No `assets/` folder yet.
+* **G. id3 after data** stays in the corpus as a green test file (anything after the audio data is ignored).
+* **Red for a non-format reason.** When the audio format (format code, bit depth, sample rate, channels) is correct but the file is red for another reason, say the audio format is correct and name the actual reason.
+* **Back/forward.** When the page is shown again (browser back or forward), clear the selected file, so a file name never shows without its result.
 
-**Across the selected files**
-* Duplicate track numbers (two files mapping to the same track).
+## Product profiles (confirmed by Jamie)
 
-### Results
+| Product | Format | Channels |
+|---|---|---|
+| WAV Trigger | 16-bit, 44.1kHz PCM | Stereo only (mono is a red light) |
+| Tsunami Mono | 16-bit, 44.1kHz PCM | Mono only |
+| Tsunami Stereo | 16-bit, 44.1kHz PCM | Stereo only |
+| WAV Trigger Pro | 16-bit, 44.1kHz PCM | Mono or stereo |
 
-* Each file gets **Pass**, **Warning**, or **Fail**.
-* Every warning and failure includes a one-line, plain-English fix. Example: "Sample rate is 48kHz. Re-export at 44.1kHz." For metadata, point to exporting as WAV (Microsoft) signed 16-bit PCM in Audacity with the metadata cleared.
-* Show what was checked and what was **not** checked (see below), so a pass is never misread as "the card will work."
+## Audacity guidance
 
-### Explicitly out of scope for v1
+Shown on a red light, tailored to what failed, and as a general help section:
 
-* **SD card format and cluster size.** A browser cannot read FAT type or allocation size. Tell users the requirement: FAT16 or FAT32, 32KB allocation size.
-* **SD card read speed.** Audio glitches are almost always the card taking too long on a block read (over about 23ms). Files cannot reveal this. Point users to Jamie's microSD test firmware and his "microSD Cards for Audio 2024" article.
-* MP3 files, folder/set checks, auto-fix, AI.
+* Open the file in Audacity.
+* For channel problems: convert tracks to mono or stereo as the product requires.
+* Set the project rate to 44100 Hz.
+* File > Export Audio. Format: **WAV (Microsoft)**. Encoding: **Signed 16-bit PCM**.
+* In the export dialog, use **Edit Metadata** and clear every field, so no metadata is written.
+* Note for users: Audacity works internally in 32-bit float, so the file only becomes 16-bit at export.
+
+Confirm the exact menu wording against the current Audacity release, and confirm that a file exported this way gets a green light (add it to the test corpus).
+
+## Known problems in the current utility (do not repeat)
+
+The existing utility (`reference/current-utility.js`) reads the first 2048 bytes and reports channels, sample rate and bit depth. It never gives a pass/fail and ignores the product. Its parsing has bugs that v1 must avoid:
+
+* **Misses metadata between `fmt ` and `data`.** It only flags chunks found before `fmt `, so a LIST chunk after `fmt ` is reported as "No metadata before audio." This is a false pass on a common case.
+* **Does not check the fmt chunk size or format code**, so 18-byte headers, 32-bit float and extensible files are not caught.
+* **No bounds checking.** A chunk that runs past the 2048 bytes read can throw an uncaught error (user sees nothing), or end the loop with a misleading message such as "No fmt chunk found."
+* **Ignores RIFF chunk padding** (odd-sized chunks are followed by a pad byte).
+* **Rejects `.WAV`** because the extension check is case-sensitive.
+* Despite the page text, it **does not check .mp3 files**, so leaving MP3 out of v1 is not a regression.
+
+## Explicitly not checked
+
+v1 does **not** show a "What this does not check" section on the page (Seth, 2026-11-10). SD card guidance comes in a later version. For scope, v1 does not check:
+
+* **SD card format and cluster size.** (Later version: tell users the requirement, FAT16 or FAT32, 32KB allocation size.)
+* **SD card read speed.** (Later version: audio glitches are almost always the card being too slow on a read. Point users to Jamie's microSD test firmware and his "microSD Cards for Audio 2024" article.)
+* Filenames (except the `.wav` extension, decision B), MP3 files, multiple files, folders.
 
 ## Roadmap
 
 * **v1:** Above.
-* **v2:** Select a whole folder (set checks: ini/csv presence, stray files). MP3 Trigger support.
-* **v3:** Auto-fix: strip extra chunks, rename, possibly convert format, with the fixed file saved locally.
+* **v2 candidates:** SD card guidance on the page (format, cluster size, read speed), filename and track-number checks, multiple files and duplicate track numbers, folder checks, Tsunami Pro, MP3 Trigger. Ask Jamie whether a file whose data size claims more bytes than the file contains (a truncated file) should be red.
+* **v3 candidates:** Auto-fix (strip metadata, rewrite to the canonical header), saved locally.
 * **Later:** AI explanations, if support data shows users need them.
 
 ## Test corpus
 
-* `test-files/` holds known good and known bad .wav files, one problem per bad file (48kHz, 24-bit, 32-bit float, mono on stereo product, LIST chunk, id3 chunk, truncated, bad filename, duplicate track).
+* `test-files/` holds known good and known bad .wav files, one problem per bad file:
+  * Green: canonical mono, canonical stereo, Audacity export, LIST chunk **after** data, `.WAV` uppercase extension.
+  * Green: id3 chunk after data (decision G).
+  * Red: 48kHz, 24-bit, 32-bit float, extensible format, 18-byte fmt chunk, mono on WAV Trigger, mono on Tsunami Stereo, stereo on Tsunami Mono, LIST before fmt, LIST between fmt and data, metadata block larger than the bytes read, not a WAV file.
+  * Red (decisions A and B): no data chunk, no fmt chunk, good audio with a non-.wav extension.
+* Tests read only the first 4KB of each file, the same way the app does.
 * `test-files/manifest.json` lists each file, its expected result per product, and whether that result was **confirmed on real hardware**.
-* Every change must keep all tests passing. A rule is only "confirmed" when the hardware column says so.
+* Include a test proving each "Known problems in the current utility" case is handled correctly.
+* Every change must keep all tests passing.
 
-## Open questions for Jamie
+## Open items
 
-1. Exact header rules: canonical 44-byte header required, or just no extra chunks?
-2. Filename parsing per product: allowed separators, leading zeros, max digits.
-3. Does current WAV Trigger firmware accept mono files?
-4. What does the current website utility check, and does it actually analyze .mp3 files?
-5. Tsunami Pro file rules.
-6. Hosting: Jamie's site or Seth's?
-7. Most common "won't play" support cases, to prioritize rules.
+* Logo: Seth is getting the original file and usage guidance from Jamie.
+* Ownership: agree with Jamie that the repo can transfer to a Robertsonics GitHub account later, and whether to use a Robertsonics subdomain for the URL.
 
 ## How to work in this repo (instructions for Claude Code)
 
 * Seth is learning. Work in small steps, and after each change explain briefly what changed and why.
 * Never add a dependency, framework, build tool or network call without asking first.
 * Keep `validator.js` free of DOM code so it stays testable.
-* Never treat a TBD rule as confirmed. If a rule's status is unclear, make it a warning and say so.
-* Add a test file and a manifest entry for every new rule.
-* Keep the UI plain and readable. Accessibility basics: labels on inputs, keyboard usable, results readable without color alone.
+* Never invent a rule. Everything in "The rule" and "Product profiles" is confirmed by Jamie; anything else needs Seth's approval.
+* Add a test file and a manifest entry for every rule.
+* Keep the UI plain and readable. Accessibility: labels on inputs, keyboard usable, and the red/green result must also be stated in words, never by color alone.

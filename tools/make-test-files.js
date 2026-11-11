@@ -1,11 +1,15 @@
 // tools/make-test-files.js
-// Builds the test corpus in test-files/. Each bad file has exactly one problem.
+// Builds the test corpus in test-files/. Each red file has exactly one problem.
 //
 // Run from the project folder:   node tools/make-test-files.js
 //
 // The output is always byte-for-byte the same, and a test checks that the
 // files in test-files/ match what this script builds. If you change this
 // script, run it again and commit the new files.
+//
+// Some test files are not built by this script (for example the Audacity
+// export, which must come from real Audacity). Those are marked
+// "builtBy": "hand" in manifest.json, and this script leaves them alone.
 //
 // Expected results for each file live in test-files/manifest.json. Update it
 // by hand when you add a file: it records what SHOULD happen, so it must not
@@ -14,7 +18,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const SECONDS = 0.1; // Short files keep the repo small.
+const SECONDS = 0.1; // Short files keep the repo small, but still over 4KB.
 
 // One chunk: 4-letter id, 4-byte size, body, and a pad byte if the size is odd.
 function chunk(id, body) {
@@ -48,8 +52,8 @@ function fmtBody({ formatCode = 1, channels, sampleRate = 44100, bits = 16 }) {
 }
 
 // A 440Hz tone. No randomness, so the bytes are always the same.
-function tone({ channels, sampleRate = 44100, bits = 16, float = false }) {
-  const frames = Math.round(sampleRate * SECONDS);
+function tone({ channels, sampleRate = 44100, bits = 16, float = false, seconds = SECONDS }) {
+  const frames = Math.round(sampleRate * seconds);
   const bytesPerSample = bits / 8;
   const out = Buffer.alloc(frames * channels * bytesPerSample);
   let pos = 0;
@@ -69,30 +73,58 @@ function tone({ channels, sampleRate = 44100, bits = 16, float = false }) {
   return out;
 }
 
-// A correct file: 16-bit, 44.1kHz PCM with the standard 44-byte header.
-function goodWav(channels) {
+// A correct file: 16-bit, 44.1kHz PCM with the canonical 44-byte header.
+function canonicalWav(channels) {
   return riff([chunk('fmt ', fmtBody({ channels })), chunk('data', tone({ channels }))]);
+}
+
+// A LIST/INFO metadata chunk, the way many editors write tags.
+function listChunk(text = 'Lavf58.76.100') {
+  const software = Buffer.from(text + '\0', 'latin1');
+  return chunk('LIST', Buffer.concat([Buffer.from('INFO', 'latin1'), chunk('ISFT', software)]));
 }
 
 function buildCorpus() {
   const files = {};
 
-  files['0001_good_stereo.wav'] = goodWav(2);
-  files['0002_good_mono.wav'] = goodWav(1);
+  // --- Green (for products that take the file's channel count) ---
 
-  files['0003_48khz.wav'] = riff([
+  files['canonical_stereo.wav'] = canonicalWav(2);
+  files['canonical_mono.wav'] = canonicalWav(1);
+  files['canonical_uppercase_ext.WAV'] = canonicalWav(2);
+
+  // Metadata AFTER the audio is ignored. The audio is kept very short so the
+  // LIST chunk falls inside the first 4KB: this proves the checker stops at
+  // "data" rather than only passing because it never read that far.
+  files['list_after_data.wav'] = riff([
+    chunk('fmt ', fmtBody({ channels: 2 })),
+    chunk('data', tone({ channels: 2, seconds: 0.005 })),
+    listChunk(),
+  ]);
+
+  // An "id3 " chunk after the audio, as some tag editors add (decision G).
+  const id3Body = Buffer.concat([Buffer.from('ID3', 'latin1'), Buffer.from([4, 0, 0, 0, 0, 0, 0])]);
+  files['id3_after_data.wav'] = riff([
+    chunk('fmt ', fmtBody({ channels: 2 })),
+    chunk('data', tone({ channels: 2 })),
+    chunk('id3 ', id3Body),
+  ]);
+
+  // --- Red: audio format ---
+
+  files['48khz.wav'] = riff([
     chunk('fmt ', fmtBody({ channels: 2, sampleRate: 48000 })),
     chunk('data', tone({ channels: 2, sampleRate: 48000 })),
   ]);
 
-  files['0004_24bit.wav'] = riff([
+  files['24bit.wav'] = riff([
     chunk('fmt ', fmtBody({ channels: 2, bits: 24 })),
     chunk('data', tone({ channels: 2, bits: 24 })),
   ]);
 
   // Real float files usually also have a "fact" chunk. It is left out so
   // this file has only one kind of problem.
-  files['0005_float32.wav'] = riff([
+  files['float32.wav'] = riff([
     chunk('fmt ', fmtBody({ formatCode: 3, channels: 2, bits: 32 })),
     chunk('data', tone({ channels: 2, bits: 32, float: true })),
   ]);
@@ -107,83 +139,78 @@ function buildCorpus() {
     // Sub-format GUID for PCM: 00000001-0000-0010-8000-00aa00389b71
     Buffer.from([0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71]),
   ]);
-  files['0006_extensible.wav'] = riff([chunk('fmt ', extensible), chunk('data', tone({ channels: 2 }))]);
+  files['extensible.wav'] = riff([chunk('fmt ', extensible), chunk('data', tone({ channels: 2 }))]);
 
-  // A LIST/INFO chunk between fmt and data, the way many editors write tags.
-  const software = Buffer.from('Lavf58.76.100\0', 'latin1');
-  const listBody = Buffer.concat([Buffer.from('INFO', 'latin1'), chunk('ISFT', software)]);
-  files['0007_list_chunk.wav'] = riff([
-    chunk('fmt ', fmtBody({ channels: 2 })),
-    chunk('LIST', listBody),
-    chunk('data', tone({ channels: 2 })),
-  ]);
-
-  // An "id3 " chunk after the audio, as some tag editors add.
-  const id3Body = Buffer.concat([Buffer.from('ID3', 'latin1'), Buffer.from([4, 0, 0, 0, 0, 0, 0])]);
-  files['0008_id3_chunk.wav'] = riff([
-    chunk('fmt ', fmtBody({ channels: 2 })),
-    chunk('data', tone({ channels: 2 })),
-    chunk('id3 ', id3Body),
-  ]);
-
-  // A good file with the second half of its audio missing.
-  const full = goodWav(2);
-  const audioBytes = full.length - 44;
-  files['0009_truncated.wav'] = full.subarray(0, full.length - audioBytes / 2);
-
-  // Named the way a real WAV Trigger user named a file that did not play.
-  files['0010 Track.wav'] = goodWav(2);
+  // --- Red: header layout and metadata ---
 
   // An 18-byte fmt chunk (16 bytes plus an empty extension size), which
-  // some programs write. No extra chunks, but not the 44-byte layout.
+  // some programs write.
   const fmt18 = Buffer.concat([fmtBody({ channels: 2 }), Buffer.from([0, 0])]);
-  files['0011_fmt_18_bytes.wav'] = riff([chunk('fmt ', fmt18), chunk('data', tone({ channels: 2 }))]);
+  files['fmt_18_bytes.wav'] = riff([chunk('fmt ', fmt18), chunk('data', tone({ channels: 2 }))]);
 
-  // Two good files that share track number 12.
-  files['0012_duplicate_a.wav'] = goodWav(2);
-  files['0012_duplicate_b.wav'] = goodWav(2);
+  files['list_before_fmt.wav'] = riff([
+    listChunk(),
+    chunk('fmt ', fmtBody({ channels: 2 })),
+    chunk('data', tone({ channels: 2 })),
+  ]);
 
-  // Not a WAV at all: the start of an MP3 file, renamed to .wav.
+  files['list_between_fmt_and_data.wav'] = riff([
+    chunk('fmt ', fmtBody({ channels: 2 })),
+    listChunk(),
+    chunk('data', tone({ channels: 2 })),
+  ]);
+
+  // A LIST chunk bigger than the first 4KB, e.g. from embedded artwork or a
+  // long comment. The checker never reaches "data".
+  files['large_metadata_block.wav'] = riff([
+    chunk('fmt ', fmtBody({ channels: 2 })),
+    listChunk('x'.repeat(8000)),
+    chunk('data', tone({ channels: 2 })),
+  ]);
+
+  // --- Red: not a WAV, missing chunks (decision A) ---
+
+  // The start of an MP3 file, renamed to .wav.
   const fakeMp3 = Buffer.alloc(256);
   Buffer.from('ID3', 'latin1').copy(fakeMp3, 0);
   fakeMp3[3] = 3;
   fakeMp3[10] = 0xff;
   fakeMp3[11] = 0xfb;
-  files['0013_not_a_wav.wav'] = fakeMp3;
+  files['not_a_wav.wav'] = fakeMp3;
 
-  // A good file with an upper-case extension. Should pass.
-  files['0014_uppercase_ext.WAV'] = goodWav(2);
+  // A format chunk but no audio. Small, so the whole file is read.
+  files['no_data_chunk.wav'] = riff([chunk('fmt ', fmtBody({ channels: 2 }))]);
 
-  // A good WAV with the wrong extension.
-  files['0015_wrong_extension.mp3'] = goodWav(2);
+  // Audio but no format chunk.
+  files['no_fmt_chunk.wav'] = riff([chunk('data', tone({ channels: 2 }))]);
 
-  // A format section but no audio section.
-  files['0016_no_data_chunk.wav'] = riff([chunk('fmt ', fmtBody({ channels: 2 }))]);
+  // --- Red: file name (decision B) ---
 
-  // A good file whose RIFF size field is 100 bytes too big. All chunks are
-  // complete, so the audio itself is intact.
-  const mismatch = Buffer.from(goodWav(2));
-  mismatch.writeUInt32LE(mismatch.readUInt32LE(4) + 100, 4);
-  files['0017_riff_size_mismatch.wav'] = mismatch;
-
-  // Filename problems, with good audio.
-  files['5000_out_of_range.wav'] = goodWav(2);
-  files['123_three_digits.wav'] = goodWav(2);
-  files['no_track_number.wav'] = goodWav(2);
+  files['wrong_extension.mp3'] = canonicalWav(2);
 
   return files;
 }
 
 // Write the files only when this script is run directly, not when a test
-// loads it to compare.
+// loads it to compare. Old built files that are no longer in the corpus are
+// deleted, but handmade files and manifest.json are kept.
 if (require.main === module) {
   const dir = path.join(__dirname, '..', 'test-files');
   fs.mkdirSync(dir, { recursive: true });
   const files = buildCorpus();
+  const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
+  const handmade = manifest.files.filter((f) => f.builtBy === 'hand').map((f) => f.file);
+  const keep = new Set([...Object.keys(files), ...handmade, 'manifest.json']);
+  for (const name of fs.readdirSync(dir)) {
+    if (!keep.has(name) && !name.startsWith('.')) {
+      fs.unlinkSync(path.join(dir, name));
+      console.log(`Removed ${name}`);
+    }
+  }
   for (const [name, bytes] of Object.entries(files)) {
     fs.writeFileSync(path.join(dir, name), bytes);
   }
   console.log(`Wrote ${Object.keys(files).length} files to test-files/`);
 }
 
-module.exports = { buildCorpus, chunk, riff, fmtBody, tone, goodWav };
+module.exports = { buildCorpus, chunk, riff, fmtBody, tone, canonicalWav, listChunk };

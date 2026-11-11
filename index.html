@@ -14,45 +14,47 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main>
+  <header>
+    <!-- Text title until Jamie's logo file arrives (decision F). -->
+    <p class="brand">Robertsonics</p>
     <h1>Audio File Checker</h1>
-    <p class="lead">
-      Check whether your .wav files will play on your Robertsonics board.
-      A file in the wrong format is silently ignored by the board, so check here first.
-    </p>
-    <p class="privacy">
-      Your files stay on your computer. They are read by this page in your browser and never uploaded.
-    </p>
+  </header>
 
-    <form id="checker">
-      <fieldset id="products">
-        <legend>1. Choose your board</legend>
-        <!-- Filled in by app.js from profiles.js -->
+  <main>
+    <p class="lead">Will this file play on your board? Find out before you copy it to the card.</p>
+    <p class="privacy">Your file stays on your computer. This page reads it in your browser and never uploads it.</p>
+
+    <!-- autocomplete="off" stops the browser restoring a file on back/forward. -->
+    <form id="checker" autocomplete="off">
+      <fieldset id="products" aria-describedby="qwiic-hint">
+        <legend>1. Which product are you using?</legend>
+        <!-- Product choices are added here by app.js from profiles.js -->
       </fieldset>
+      <p class="hint" id="qwiic-hint">Not sure? The Qwiic Tsunami ships with mono firmware.</p>
 
       <fieldset>
-        <legend>2. Choose your .wav files</legend>
+        <legend>2. Drag and drop a WAV file</legend>
         <div id="drop-zone" class="drop-zone">
-          <label for="file-input">Select one or more .wav files</label>
-          <input type="file" id="file-input" accept=".wav,.WAV,audio/wav" multiple>
-          <p class="hint">Or drag and drop files here.</p>
+          <p class="drop-text">Drop a WAV file here</p>
+          <p>or</p>
+          <button type="button" id="select-button">Select file</button>
+          <input type="file" id="file-input" accept=".wav,.WAV,audio/wav" hidden>
         </div>
-        <button type="button" id="clear-button" hidden>Clear files</button>
       </fieldset>
     </form>
 
-    <section id="results" aria-labelledby="results-heading" hidden>
-      <h2 id="results-heading">Results</h2>
-      <p id="summary" role="status" aria-live="polite"></p>
-      <div id="file-results"></div>
+    <section id="result" aria-labelledby="result-heading" hidden>
+      <h2 id="result-heading">Result</h2>
+      <!-- Filled in by app.js. role="status" reads the result aloud to screen reader users. -->
+      <div id="result-body" role="status" aria-live="polite"></div>
     </section>
 
-    <section aria-labelledby="not-checked-heading" class="not-checked">
-      <h2 id="not-checked-heading">What this does not check</h2>
-      <p>A pass here means the files are right. It does not mean the card will work. Also check:</p>
-      <ul id="not-checked-list">
-        <!-- Filled in by app.js from validator.js -->
-      </ul>
+    <section aria-labelledby="howto-heading" class="howto">
+      <h2 id="howto-heading">How to create a compatible file</h2>
+      <p>Using <strong>Audacity</strong> (free):</p>
+      <ol id="howto-steps">
+        <!-- Steps are added here by app.js from validator.js -->
+      </ol>
     </section>
   </main>
 

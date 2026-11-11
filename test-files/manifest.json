@@ -1,267 +1,215 @@
 {
   "about": [
     "Expected results for every file in test-files/, per product.",
-    "Written by hand from the rules in CLAUDE.md. Never generate this from the validator's output.",
-    "\"pass\" means every check passes. Otherwise, status is the file's overall result and because lists every check that is a warning or fail.",
-    "confirmedOnHardware lists the products on which this result has been seen on a real board. A rule is only confirmed when this says so.",
-    "Note: underscore separators warn on Tsunami because only a hyphen is documented for it so far (open question 2 for Jamie)."
+    "Written by hand from \"The rule (v1)\" and the decisions in CLAUDE.md. Never generate this from the validator's output.",
+    "Tests read only the first 4KB of each file, as the app does.",
+    "\"green\" means the file will play. Otherwise, because lists every check that fails.",
+    "builtBy is \"script\" for files made by tools/make-test-files.js, or \"hand\" for files made in real software (e.g. the Audacity export).",
+    "confirmedOnHardware lists the products on which this result has been seen on a real board."
   ],
   "products": ["wav-trigger", "tsunami-mono", "tsunami-stereo", "wav-trigger-pro"],
   "files": [
     {
-      "file": "0001_good_stereo.wav",
-      "problem": "None: 16-bit, 44.1kHz stereo PCM with a 44-byte header.",
+      "file": "canonical_stereo.wav",
+      "problem": "None: 16-bit, 44.1kHz stereo PCM, canonical 44-byte header. Red only on Tsunami Mono (stereo on a mono product).",
+      "builtBy": "script",
       "expected": {
-        "wav-trigger": "pass",
-        "tsunami-mono": { "status": "fail", "because": ["channels", "track-separator"] },
-        "tsunami-stereo": { "status": "warning", "because": ["track-separator"] },
-        "wav-trigger-pro": "pass"
+        "wav-trigger": "green",
+        "tsunami-mono": { "result": "red", "because": ["channels"] },
+        "tsunami-stereo": "green",
+        "wav-trigger-pro": "green"
       },
       "confirmedOnHardware": []
     },
     {
-      "file": "0002_good_mono.wav",
-      "problem": "None: 16-bit, 44.1kHz mono PCM. Tests mono on stereo products.",
+      "file": "canonical_mono.wav",
+      "problem": "None: 16-bit, 44.1kHz mono PCM. Red on WAV Trigger and Tsunami Stereo (mono on a stereo product).",
+      "builtBy": "script",
       "expected": {
-        "wav-trigger": { "status": "warning", "because": ["channels"] },
-        "tsunami-mono": { "status": "warning", "because": ["track-separator"] },
-        "tsunami-stereo": { "status": "fail", "because": ["channels", "track-separator"] },
-        "wav-trigger-pro": "pass"
+        "wav-trigger": { "result": "red", "because": ["channels"] },
+        "tsunami-mono": "green",
+        "tsunami-stereo": { "result": "red", "because": ["channels"] },
+        "wav-trigger-pro": "green"
       },
       "confirmedOnHardware": []
     },
     {
-      "file": "0003_48khz.wav",
-      "problem": "Sample rate is 48kHz.",
-      "expected": {
-        "wav-trigger": { "status": "fail", "because": ["sample-rate"] },
-        "tsunami-mono": { "status": "fail", "because": ["sample-rate", "channels", "track-separator"] },
-        "tsunami-stereo": { "status": "fail", "because": ["sample-rate", "track-separator"] },
-        "wav-trigger-pro": { "status": "fail", "because": ["sample-rate"] }
-      },
-      "confirmedOnHardware": []
-    },
-    {
-      "file": "0004_24bit.wav",
-      "problem": "Bit depth is 24.",
-      "expected": {
-        "wav-trigger": { "status": "fail", "because": ["bit-depth"] },
-        "tsunami-mono": { "status": "fail", "because": ["bit-depth", "channels", "track-separator"] },
-        "tsunami-stereo": { "status": "fail", "because": ["bit-depth", "track-separator"] },
-        "wav-trigger-pro": { "status": "fail", "because": ["bit-depth"] }
-      },
-      "confirmedOnHardware": []
-    },
-    {
-      "file": "0005_float32.wav",
-      "problem": "32-bit floating point (format code 3). Fails both format and bit depth.",
-      "expected": {
-        "wav-trigger": { "status": "fail", "because": ["format-code", "bit-depth"] },
-        "tsunami-mono": { "status": "fail", "because": ["format-code", "bit-depth", "channels", "track-separator"] },
-        "tsunami-stereo": { "status": "fail", "because": ["format-code", "bit-depth", "track-separator"] },
-        "wav-trigger-pro": { "status": "fail", "because": ["format-code", "bit-depth"] }
-      },
-      "confirmedOnHardware": []
-    },
-    {
-      "file": "0006_extensible.wav",
-      "problem": "WAVE_FORMAT_EXTENSIBLE header (0xFFFE) around 16-bit PCM. Its 40-byte fmt chunk is also non-canonical.",
-      "expected": {
-        "wav-trigger": { "status": "fail", "because": ["format-code", "canonical-header"] },
-        "tsunami-mono": { "status": "fail", "because": ["format-code", "canonical-header", "channels", "track-separator"] },
-        "tsunami-stereo": { "status": "fail", "because": ["format-code", "canonical-header", "track-separator"] },
-        "wav-trigger-pro": { "status": "fail", "because": ["format-code", "canonical-header"] }
-      },
-      "confirmedOnHardware": []
-    },
-    {
-      "file": "0007_list_chunk.wav",
-      "problem": "LIST/INFO metadata chunk between fmt and data.",
-      "expected": {
-        "wav-trigger": { "status": "fail", "because": ["extra-chunks"] },
-        "tsunami-mono": { "status": "fail", "because": ["extra-chunks", "channels", "track-separator"] },
-        "tsunami-stereo": { "status": "fail", "because": ["extra-chunks", "track-separator"] },
-        "wav-trigger-pro": { "status": "fail", "because": ["extra-chunks"] }
-      },
-      "confirmedOnHardware": []
-    },
-    {
-      "file": "0008_id3_chunk.wav",
-      "problem": "id3 chunk after the audio data.",
-      "expected": {
-        "wav-trigger": { "status": "fail", "because": ["extra-chunks"] },
-        "tsunami-mono": { "status": "fail", "because": ["extra-chunks", "channels", "track-separator"] },
-        "tsunami-stereo": { "status": "fail", "because": ["extra-chunks", "track-separator"] },
-        "wav-trigger-pro": { "status": "fail", "because": ["extra-chunks"] }
-      },
-      "confirmedOnHardware": []
-    },
-    {
-      "file": "0009_truncated.wav",
-      "problem": "Second half of the audio data is missing.",
-      "expected": {
-        "wav-trigger": { "status": "fail", "because": ["file-length"] },
-        "tsunami-mono": { "status": "fail", "because": ["file-length", "channels", "track-separator"] },
-        "tsunami-stereo": { "status": "fail", "because": ["file-length", "track-separator"] },
-        "wav-trigger-pro": { "status": "fail", "because": ["file-length"] }
-      },
-      "confirmedOnHardware": []
-    },
-    {
-      "file": "0010 Track.wav",
-      "problem": "Space after the track number, as in a real WAV Trigger support case.",
-      "expected": {
-        "wav-trigger": { "status": "warning", "because": ["track-separator"] },
-        "tsunami-mono": { "status": "fail", "because": ["channels", "track-separator"] },
-        "tsunami-stereo": { "status": "warning", "because": ["track-separator"] },
-        "wav-trigger-pro": { "status": "warning", "because": ["track-separator"] }
-      },
-      "confirmedOnHardware": []
-    },
-    {
-      "file": "0011_fmt_18_bytes.wav",
-      "problem": "18-byte fmt chunk: no extra chunks, but not the canonical 44-byte header.",
-      "expected": {
-        "wav-trigger": { "status": "warning", "because": ["canonical-header"] },
-        "tsunami-mono": { "status": "fail", "because": ["canonical-header", "channels", "track-separator"] },
-        "tsunami-stereo": { "status": "warning", "because": ["canonical-header", "track-separator"] },
-        "wav-trigger-pro": { "status": "warning", "because": ["canonical-header"] }
-      },
-      "confirmedOnHardware": []
-    },
-    {
-      "file": "0012_duplicate_a.wav",
-      "problem": "None on its own. Shares track 12 with 0012_duplicate_b.wav (see groups).",
-      "expected": {
-        "wav-trigger": "pass",
-        "tsunami-mono": { "status": "fail", "because": ["channels", "track-separator"] },
-        "tsunami-stereo": { "status": "warning", "because": ["track-separator"] },
-        "wav-trigger-pro": "pass"
-      },
-      "confirmedOnHardware": []
-    },
-    {
-      "file": "0012_duplicate_b.wav",
-      "problem": "None on its own. Shares track 12 with 0012_duplicate_a.wav (see groups).",
-      "expected": {
-        "wav-trigger": "pass",
-        "tsunami-mono": { "status": "fail", "because": ["channels", "track-separator"] },
-        "tsunami-stereo": { "status": "warning", "because": ["track-separator"] },
-        "wav-trigger-pro": "pass"
-      },
-      "confirmedOnHardware": []
-    },
-    {
-      "file": "0013_not_a_wav.wav",
-      "problem": "Not a WAV file (starts like an MP3). All content checks are skipped.",
-      "expected": {
-        "wav-trigger": { "status": "fail", "because": ["riff-header"] },
-        "tsunami-mono": { "status": "fail", "because": ["riff-header", "track-separator"] },
-        "tsunami-stereo": { "status": "fail", "because": ["riff-header", "track-separator"] },
-        "wav-trigger-pro": { "status": "fail", "because": ["riff-header"] }
-      },
-      "confirmedOnHardware": []
-    },
-    {
-      "file": "0014_uppercase_ext.WAV",
+      "file": "canonical_uppercase_ext.WAV",
       "problem": "None: upper-case .WAV extension is allowed.",
+      "builtBy": "script",
       "expected": {
-        "wav-trigger": "pass",
-        "tsunami-mono": { "status": "fail", "because": ["channels", "track-separator"] },
-        "tsunami-stereo": { "status": "warning", "because": ["track-separator"] },
-        "wav-trigger-pro": "pass"
+        "wav-trigger": "green",
+        "tsunami-mono": { "result": "red", "because": ["channels"] },
+        "tsunami-stereo": "green",
+        "wav-trigger-pro": "green"
       },
       "confirmedOnHardware": []
     },
     {
-      "file": "0015_wrong_extension.mp3",
-      "problem": "Good WAV audio, but the name ends in .mp3.",
+      "file": "list_after_data.wav",
+      "problem": "None: a LIST chunk after the audio is ignored. Short audio, so the LIST chunk is inside the first 4KB.",
+      "builtBy": "script",
       "expected": {
-        "wav-trigger": { "status": "fail", "because": ["extension"] },
-        "tsunami-mono": { "status": "fail", "because": ["extension", "channels", "track-separator"] },
-        "tsunami-stereo": { "status": "fail", "because": ["extension", "track-separator"] },
-        "wav-trigger-pro": { "status": "fail", "because": ["extension"] }
+        "wav-trigger": "green",
+        "tsunami-mono": { "result": "red", "because": ["channels"] },
+        "tsunami-stereo": "green",
+        "wav-trigger-pro": "green"
       },
       "confirmedOnHardware": []
     },
     {
-      "file": "0016_no_data_chunk.wav",
-      "problem": "Has a fmt chunk but no data chunk.",
+      "file": "id3_after_data.wav",
+      "problem": "None: an id3 chunk after the audio is ignored (decision G).",
+      "builtBy": "script",
       "expected": {
-        "wav-trigger": { "status": "fail", "because": ["required-chunks"] },
-        "tsunami-mono": { "status": "fail", "because": ["required-chunks", "channels", "track-separator"] },
-        "tsunami-stereo": { "status": "fail", "because": ["required-chunks", "track-separator"] },
-        "wav-trigger-pro": { "status": "fail", "because": ["required-chunks"] }
+        "wav-trigger": "green",
+        "tsunami-mono": { "result": "red", "because": ["channels"] },
+        "tsunami-stereo": "green",
+        "wav-trigger-pro": "green"
       },
       "confirmedOnHardware": []
     },
     {
-      "file": "0017_riff_size_mismatch.wav",
-      "problem": "RIFF size field is 100 bytes too big, but every chunk is complete.",
+      "file": "48khz.wav",
+      "problem": "Sample rate is 48kHz.",
+      "builtBy": "script",
       "expected": {
-        "wav-trigger": { "status": "warning", "because": ["file-length"] },
-        "tsunami-mono": { "status": "fail", "because": ["file-length", "channels", "track-separator"] },
-        "tsunami-stereo": { "status": "warning", "because": ["file-length", "track-separator"] },
-        "wav-trigger-pro": { "status": "warning", "because": ["file-length"] }
+        "wav-trigger": { "result": "red", "because": ["sample-rate"] },
+        "tsunami-mono": { "result": "red", "because": ["sample-rate", "channels"] },
+        "tsunami-stereo": { "result": "red", "because": ["sample-rate"] },
+        "wav-trigger-pro": { "result": "red", "because": ["sample-rate"] }
       },
       "confirmedOnHardware": []
     },
     {
-      "file": "5000_out_of_range.wav",
-      "problem": "Track 5000 is above 4096. Within the (unconfirmed) 4-digit range on WAV Trigger Pro.",
+      "file": "24bit.wav",
+      "problem": "Bit depth is 24.",
+      "builtBy": "script",
       "expected": {
-        "wav-trigger": { "status": "fail", "because": ["track-number"] },
-        "tsunami-mono": { "status": "fail", "because": ["track-number", "channels", "track-separator"] },
-        "tsunami-stereo": { "status": "fail", "because": ["track-number", "track-separator"] },
-        "wav-trigger-pro": "pass"
+        "wav-trigger": { "result": "red", "because": ["bit-depth"] },
+        "tsunami-mono": { "result": "red", "because": ["bit-depth", "channels"] },
+        "tsunami-stereo": { "result": "red", "because": ["bit-depth"] },
+        "wav-trigger-pro": { "result": "red", "because": ["bit-depth"] }
       },
       "confirmedOnHardware": []
     },
     {
-      "file": "123_three_digits.wav",
-      "problem": "3-digit track number. WAV Trigger Pro needs exactly 4 digits.",
+      "file": "float32.wav",
+      "problem": "32-bit floating point (format code 3). Fails both format code and bit depth.",
+      "builtBy": "script",
       "expected": {
-        "wav-trigger": "pass",
-        "tsunami-mono": { "status": "fail", "because": ["channels", "track-separator"] },
-        "tsunami-stereo": { "status": "warning", "because": ["track-separator"] },
-        "wav-trigger-pro": { "status": "fail", "because": ["track-number"] }
+        "wav-trigger": { "result": "red", "because": ["format-code", "bit-depth"] },
+        "tsunami-mono": { "result": "red", "because": ["format-code", "bit-depth", "channels"] },
+        "tsunami-stereo": { "result": "red", "because": ["format-code", "bit-depth"] },
+        "wav-trigger-pro": { "result": "red", "because": ["format-code", "bit-depth"] }
       },
       "confirmedOnHardware": []
     },
     {
-      "file": "no_track_number.wav",
-      "problem": "Name does not start with a track number. Separator check is skipped.",
+      "file": "extensible.wav",
+      "problem": "WAVE_FORMAT_EXTENSIBLE (0xFFFE) around 16-bit PCM. Fails format code, and its fmt chunk is 40 bytes.",
+      "builtBy": "script",
       "expected": {
-        "wav-trigger": { "status": "fail", "because": ["track-number"] },
-        "tsunami-mono": { "status": "fail", "because": ["track-number", "channels"] },
-        "tsunami-stereo": { "status": "fail", "because": ["track-number"] },
-        "wav-trigger-pro": { "status": "fail", "because": ["track-number"] }
-      },
-      "confirmedOnHardware": []
-    }
-  ],
-  "groups": [
-    {
-      "files": ["0012_duplicate_a.wav", "0012_duplicate_b.wav"],
-      "problem": "Two files map to track 12.",
-      "check": "duplicate-track",
-      "expectedCheckStatus": {
-        "wav-trigger": "warning",
-        "tsunami-mono": "warning",
-        "tsunami-stereo": "warning",
-        "wav-trigger-pro": "warning"
+        "wav-trigger": { "result": "red", "because": ["fmt-size", "format-code"] },
+        "tsunami-mono": { "result": "red", "because": ["fmt-size", "format-code", "channels"] },
+        "tsunami-stereo": { "result": "red", "because": ["fmt-size", "format-code"] },
+        "wav-trigger-pro": { "result": "red", "because": ["fmt-size", "format-code"] }
       },
       "confirmedOnHardware": []
     },
     {
-      "files": ["0001_good_stereo.wav", "0002_good_mono.wav"],
-      "problem": "None: different track numbers.",
-      "check": "duplicate-track",
-      "expectedCheckStatus": {
-        "wav-trigger": "pass",
-        "tsunami-mono": "pass",
-        "tsunami-stereo": "pass",
-        "wav-trigger-pro": "pass"
+      "file": "fmt_18_bytes.wav",
+      "problem": "18-byte fmt chunk. Audio format itself is correct.",
+      "builtBy": "script",
+      "expected": {
+        "wav-trigger": { "result": "red", "because": ["fmt-size"] },
+        "tsunami-mono": { "result": "red", "because": ["fmt-size", "channels"] },
+        "tsunami-stereo": { "result": "red", "because": ["fmt-size"] },
+        "wav-trigger-pro": { "result": "red", "because": ["fmt-size"] }
+      },
+      "confirmedOnHardware": []
+    },
+    {
+      "file": "list_before_fmt.wav",
+      "problem": "LIST metadata chunk before the fmt chunk.",
+      "builtBy": "script",
+      "expected": {
+        "wav-trigger": { "result": "red", "because": ["metadata"] },
+        "tsunami-mono": { "result": "red", "because": ["metadata", "channels"] },
+        "tsunami-stereo": { "result": "red", "because": ["metadata"] },
+        "wav-trigger-pro": { "result": "red", "because": ["metadata"] }
+      },
+      "confirmedOnHardware": []
+    },
+    {
+      "file": "list_between_fmt_and_data.wav",
+      "problem": "LIST metadata chunk between fmt and data. The current utility wrongly reports this as no metadata.",
+      "builtBy": "script",
+      "expected": {
+        "wav-trigger": { "result": "red", "because": ["metadata"] },
+        "tsunami-mono": { "result": "red", "because": ["metadata", "channels"] },
+        "tsunami-stereo": { "result": "red", "because": ["metadata"] },
+        "wav-trigger-pro": { "result": "red", "because": ["metadata"] }
+      },
+      "confirmedOnHardware": []
+    },
+    {
+      "file": "large_metadata_block.wav",
+      "problem": "LIST chunk larger than the first 4KB, between fmt and data. The audio data is never reached.",
+      "builtBy": "script",
+      "expected": {
+        "wav-trigger": { "result": "red", "because": ["metadata"] },
+        "tsunami-mono": { "result": "red", "because": ["metadata", "channels"] },
+        "tsunami-stereo": { "result": "red", "because": ["metadata"] },
+        "wav-trigger-pro": { "result": "red", "because": ["metadata"] }
+      },
+      "confirmedOnHardware": []
+    },
+    {
+      "file": "not_a_wav.wav",
+      "problem": "Not a WAV file (starts like an MP3).",
+      "builtBy": "script",
+      "expected": {
+        "wav-trigger": { "result": "red", "because": ["wav-file"] },
+        "tsunami-mono": { "result": "red", "because": ["wav-file"] },
+        "tsunami-stereo": { "result": "red", "because": ["wav-file"] },
+        "wav-trigger-pro": { "result": "red", "because": ["wav-file"] }
+      },
+      "confirmedOnHardware": []
+    },
+    {
+      "file": "no_data_chunk.wav",
+      "problem": "A fmt chunk but no data chunk; the whole (small) file is read (decision A).",
+      "builtBy": "script",
+      "expected": {
+        "wav-trigger": { "result": "red", "because": ["audio-data"] },
+        "tsunami-mono": { "result": "red", "because": ["audio-data", "channels"] },
+        "tsunami-stereo": { "result": "red", "because": ["audio-data"] },
+        "wav-trigger-pro": { "result": "red", "because": ["audio-data"] }
+      },
+      "confirmedOnHardware": []
+    },
+    {
+      "file": "no_fmt_chunk.wav",
+      "problem": "A data chunk but no fmt chunk (decision A).",
+      "builtBy": "script",
+      "expected": {
+        "wav-trigger": { "result": "red", "because": ["fmt-chunk"] },
+        "tsunami-mono": { "result": "red", "because": ["fmt-chunk"] },
+        "tsunami-stereo": { "result": "red", "because": ["fmt-chunk"] },
+        "wav-trigger-pro": { "result": "red", "because": ["fmt-chunk"] }
+      },
+      "confirmedOnHardware": []
+    },
+    {
+      "file": "wrong_extension.mp3",
+      "problem": "Canonical stereo WAV, but the name ends in .mp3 (decision B).",
+      "builtBy": "script",
+      "expected": {
+        "wav-trigger": { "result": "red", "because": ["extension"] },
+        "tsunami-mono": { "result": "red", "because": ["extension", "channels"] },
+        "tsunami-stereo": { "result": "red", "because": ["extension"] },
+        "wav-trigger-pro": { "result": "red", "because": ["extension"] }
       },
       "confirmedOnHardware": []
     }
