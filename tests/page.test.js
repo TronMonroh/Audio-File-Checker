@@ -51,6 +51,13 @@ test('page shows the product question, Qwiic hint and Audacity help', () => {
   assert.match(html, /How to create a compatible file/);
 });
 
+test('the header shows the logo, with a white version for dark mode', () => {
+  assert.match(html, /<source srcset="assets\/robertsonics-logo-white\.png" media="\(prefers-color-scheme: dark\)">/);
+  assert.match(html, /<img class="logo" src="assets\/robertsonics-logo\.png" alt="Robertsonics"/);
+  assert.ok(fs.existsSync(path.join(root, 'assets/robertsonics-logo.png')));
+  assert.ok(fs.existsSync(path.join(root, 'assets/robertsonics-logo-white.png')));
+});
+
 test('no "What this does not check" section in v1', () => {
   assert.doesNotMatch(html, /does not check/i);
 });

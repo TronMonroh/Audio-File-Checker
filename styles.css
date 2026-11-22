@@ -49,12 +49,15 @@ main {
   margin: 0 auto;
 }
 
-.brand {
-  margin: 0;
-  font-weight: bold;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--muted);
+/* The logo is 270px wide on desktop. On phones it is 60% of the screen
+   width instead (min() picks whichever is smaller), so it scales down.
+   height: auto keeps its shape (the width and height in index.html only
+   tell the browser the shape, so the page doesn't jump while it loads). */
+.logo {
+  display: block;
+  width: min(270px, 60vw);
+  height: auto;
+  margin-bottom: 0.75rem;
 }
 
 h1 {

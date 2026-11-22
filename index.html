@@ -15,8 +15,11 @@
 </head>
 <body>
   <header>
-    <!-- Text title until Jamie's logo file arrives (decision F). -->
-    <p class="brand">Robertsonics</p>
+    <!-- Jamie's logo. The browser shows the white version in dark mode. -->
+    <picture>
+      <source srcset="assets/robertsonics-logo-white.png" media="(prefers-color-scheme: dark)">
+      <img class="logo" src="assets/robertsonics-logo.png" alt="Robertsonics" width="720" height="141">
+    </picture>
     <h1>Audio File Checker</h1>
   </header>
 

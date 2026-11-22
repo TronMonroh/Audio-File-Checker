@@ -96,7 +96,7 @@ These settle cases "The rule" leaves open. They change only what the app **says*
 * **C. Checking is automatic.** Check as soon as a file is dropped or selected (no Analyze button), and recheck automatically when the product changes.
 * **D. Read the first 4KB** (4096 bytes) of the file. This only affects how far the app can explain a metadata block; the red/green decision needs just the first 44 bytes.
 * **E. "Show all checks" table.** Keep it, listing only the v1 rules above (plus B).
-* **F. Logo.** Text title until Jamie's logo file arrives. No `assets/` folder yet.
+* **F. Logo.** Done (2026-11-22): Jamie's logo is in `assets/` (`robertsonics-logo.png`, and `robertsonics-logo-white.png` for dark mode), shown in the header with a `<picture>` element, alt text "Robertsonics", about 270px wide and smaller on phones.
 * **G. id3 after data** stays in the corpus as a green test file (anything after the audio data is ignored).
 * **Red for a non-format reason.** When the audio format (format code, bit depth, sample rate, channels) is correct but the file is red for another reason, say the audio format is correct and name the actual reason.
 * **Back/forward.** When the page is shown again (browser back or forward), clear the selected file, so a file name never shows without its result.
@@ -163,7 +163,7 @@ v1 does **not** show a "What this does not check" section on the page (Seth, 202
 
 ## Open items
 
-* Logo: Seth is getting the original file and usage guidance from Jamie.
+* ~~Logo: Seth is getting the original file and usage guidance from Jamie.~~ Done (2026-11-22), see decision F.
 * Ownership: agree with Jamie that the repo can transfer to a Robertsonics GitHub account later, and whether to use a Robertsonics subdomain for the URL.
 
 ## How to work in this repo (instructions for Claude Code)
