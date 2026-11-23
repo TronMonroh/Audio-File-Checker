@@ -212,6 +212,42 @@
         "wav-trigger-pro": { "result": "red", "because": ["extension"] }
       },
       "confirmedOnHardware": []
+    },
+    {
+      "file": "audacity4_0010.wav",
+      "problem": "None: Seth's Audacity 4.0.2 export (2026-11-22) of 0010_red_metadata_between_fmt_and_data.wav, with title and artist tags, exported as WAV (Microsoft), Stereo, 44100 Hz, Signed 16-bit PCM, without clearing metadata. Audacity 4 writes its LIST and id3 metadata after the audio, so it is ignored.",
+      "builtBy": "hand",
+      "expected": {
+        "wav-trigger": "green",
+        "tsunami-mono": { "result": "red", "because": ["channels"] },
+        "tsunami-stereo": "green",
+        "wav-trigger-pro": "green"
+      },
+      "confirmedOnHardware": []
+    },
+    {
+      "file": "audacity4_0005.wav",
+      "problem": "None: Seth's Audacity 4.0.2 export (2026-11-22) of 0005_red_48kHz.wav, exported at 44100 Hz (stereo, Signed 16-bit PCM).",
+      "builtBy": "hand",
+      "expected": {
+        "wav-trigger": "green",
+        "tsunami-mono": { "result": "red", "because": ["channels"] },
+        "tsunami-stereo": "green",
+        "wav-trigger-pro": "green"
+      },
+      "confirmedOnHardware": []
+    },
+    {
+      "file": "audacity4_0001.wav",
+      "problem": "None: Seth's Audacity 4.0.2 export (2026-11-22) of 0001_green_stereo.wav, exported with Channels set to Mono (44100 Hz, Signed 16-bit PCM).",
+      "builtBy": "hand",
+      "expected": {
+        "wav-trigger": { "result": "red", "because": ["channels"] },
+        "tsunami-mono": "green",
+        "tsunami-stereo": { "result": "red", "because": ["channels"] },
+        "wav-trigger-pro": "green"
+      },
+      "confirmedOnHardware": []
     }
   ]
 }

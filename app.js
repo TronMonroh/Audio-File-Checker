@@ -56,6 +56,7 @@ function showHowToSteps() {
   for (const step of GENERAL_AUDACITY_STEPS) {
     list.append(el('li', { text: step }));
   }
+  list.after(el('p', { className: 'tested-with', text: AUDACITY_VERSION_NOTE }));
 }
 
 function selectedProfile() {
@@ -152,6 +153,7 @@ function showResult() {
   if (result.audacitySteps.length > 0) {
     body.append(el('h3', { text: 'How to fix it in Audacity' }));
     body.append(el('ol', {}, result.audacitySteps.map((step) => el('li', { text: step }))));
+    body.append(el('p', { className: 'tested-with', text: AUDACITY_VERSION_NOTE }));
   }
 
   body.append(allChecksTable(result.checks));
@@ -184,7 +186,9 @@ function detectedValues(detected) {
 
 // Every v1 check, so the user can see what was checked.
 function allChecksTable(checks) {
-  const details = el('details', {}, [el('summary', { text: 'Show all checks' })]);
+  // A <details> element: closed by default, and its <summary> can be opened
+  // with the mouse, or with Tab then Enter or Space on the keyboard.
+  const details = el('details', { className: 'all-checks' }, [el('summary', { text: 'Show all checks' })]);
   const table = el('table', {}, [
     el('thead', {}, [
       el('tr', {}, [

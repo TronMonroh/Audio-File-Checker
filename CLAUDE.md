@@ -95,7 +95,7 @@ These settle cases "The rule" leaves open. They change only what the app **says*
 * **B. File extension (Seth's decision, pending Jamie).** Red if the file name does not end in `.wav` (any case), with the fix "Rename the file to end in .wav." This is the one filename check in v1. Keep it in its own function and check id, separate from the header checks, so it can be removed in one small change if Jamie decides against it.
 * **C. Checking is automatic.** Check as soon as a file is dropped or selected (no Analyze button), and recheck automatically when the product changes.
 * **D. Read the first 4KB** (4096 bytes) of the file. This only affects how far the app can explain a metadata block; the red/green decision needs just the first 44 bytes.
-* **E. "Show all checks" table.** Keep it, listing only the v1 rules above (plus B).
+* **E. "Show all checks" table.** Keep it, listing only the v1 rules above (plus B). It sits below the result and the fix, collapsed by default. Its toggle is styled as a clear secondary button (larger label, a border, an arrow that turns when it opens), less prominent than the green or red light, and works from the keyboard (2026-11-22).
 * **F. Logo.** Done (2026-11-22): Jamie's logo is in `assets/` (`robertsonics-logo.png`, and `robertsonics-logo-white.png` for dark mode), shown in the header with a `<picture>` element, alt text "Robertsonics", about 270px wide and smaller on phones.
 * **G. id3 after data** stays in the corpus as a green test file (anything after the audio data is ignored).
 * **Red for a non-format reason.** When the audio format (format code, bit depth, sample rate, channels) is correct but the file is red for another reason, say the audio format is correct and name the actual reason.
@@ -112,16 +112,29 @@ These settle cases "The rule" leaves open. They change only what the app **says*
 
 ## Audacity guidance
 
-Shown on a red light, tailored to what failed, and as a general help section:
+Tested by Seth with **Audacity 4.0.2** (2026-11-22). The app says "These steps were tested with Audacity 4.0.2." under the steps.
+
+Main steps, shown on every red light (except when only the file name is wrong) and in the "How to create a compatible file" section:
 
 * Open the file in Audacity.
-* For channel problems: convert tracks to mono or stereo as the product requires.
-* Set the project rate to 44100 Hz.
-* File > Export Audio. Format: **WAV (Microsoft)**. Encoding: **Signed 16-bit PCM**.
-* In the export dialog, use **Edit Metadata** and clear every field, so no metadata is written.
-* Note for users: Audacity works internally in 32-bit float, so the file only becomes 16-bit at export.
+* File > Export audio.
+* Format: **WAV (Microsoft)**.
+* Channels: **Mono** or **Stereo**, as your product requires. (On a red light, name what the selected product needs.)
+* Sample rate: **44100 Hz**.
+* Encoding: **Signed 16-bit PCM**. Check Encoding again after choosing the format, because it may not change automatically.
 
-Confirm the exact menu wording against the current Audacity release, and confirm that a file exported this way gets a green light (add it to the test corpus).
+Shown only when it applies:
+
+* "Click Edit metadata and clear every field." Only on a red light where metadata was found before the audio. Audacity 4 writes its metadata (LIST and id3) after the audio, which is ignored, so clearing it is not needed otherwise.
+* Note: Audacity works internally in 32-bit float, so the file only becomes 16-bit at export. Shown for bit depth and encoding problems, and in the general section.
+
+Do not tell users to "convert the track" or "set the project rate"; the export settings above do both.
+
+Seth's Audacity 4.0.2 tests, all in the test corpus:
+
+* `audacity4_0010.wav`: a file with title and artist tags, exported as WAV (Microsoft), Stereo, 44100 Hz, Signed 16-bit PCM **without** clearing metadata. Green on WAV Trigger, red on Tsunami Mono (stereo).
+* `audacity4_0005.wav`: a 48kHz file exported at 44100 Hz. Green.
+* `audacity4_0001.wav`: a stereo file exported with Channels set to Mono. Green on Tsunami Mono.
 
 ## Known problems in the current utility (do not repeat)
 
@@ -152,7 +165,7 @@ v1 does **not** show a "What this does not check" section on the page (Seth, 202
 ## Test corpus
 
 * `test-files/` holds known good and known bad .wav files, one problem per bad file:
-  * Green: canonical mono, canonical stereo, Audacity export, LIST chunk **after** data, `.WAV` uppercase extension.
+  * Green: canonical mono, canonical stereo, Audacity export (Seth's three Audacity 4.0.2 exports, `audacity4_*.wav`, `builtBy: "hand"`), LIST chunk **after** data, `.WAV` uppercase extension.
   * Green: id3 chunk after data (decision G).
   * Red: 48kHz, 24-bit, 32-bit float, extensible format, 18-byte fmt chunk, mono on WAV Trigger, mono on Tsunami Stereo, stereo on Tsunami Mono, LIST before fmt, LIST between fmt and data, metadata block larger than the bytes read, not a WAV file.
   * Red (decisions A and B): no data chunk, no fmt chunk, good audio with a non-.wav extension.

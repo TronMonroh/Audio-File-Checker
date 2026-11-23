@@ -78,24 +78,35 @@ const CHUNK_DESCRIPTIONS = {
 const SEE_STEPS = '(see the Audacity steps below)';
 const EXPORT_FIX = `Re-export the file from Audacity as WAV (Microsoft), Signed 16-bit PCM ${SEE_STEPS}.`;
 
-// The general "How to create a compatible file" steps, from CLAUDE.md.
-// Menu wording still to be confirmed against the current Audacity release.
+// The Audacity steps, from CLAUDE.md. Seth tested these with Audacity 4.0.2
+// (2026-11-22): every export made this way was green. Audacity 4 does not
+// write metadata before the audio, so the Edit metadata step is only shown
+// when metadata was actually found there.
+const AUDACITY_VERSION_NOTE = 'These steps were tested with Audacity 4.0.2.';
 const AUDACITY_STEPS = {
   open: 'Open the file in Audacity.',
-  channels: 'Convert the track to mono or stereo, as your product requires. Tsunami Mono needs mono. WAV Trigger and Tsunami Stereo need stereo. WAV Trigger Pro takes either.',
-  rate: 'Set the project rate to 44100 Hz.',
-  exportAudio: 'Choose File > Export Audio. Set Format to WAV (Microsoft) and Encoding to Signed 16-bit PCM.',
-  metadata: 'In the export dialog, use Edit Metadata and clear every field, so no metadata is written.',
+  exportAudio: 'Choose File > Export audio.',
+  format: 'Format: WAV (Microsoft).',
+  channels: 'Channels: Mono or Stereo, as your product requires. Tsunami Mono needs Mono. WAV Trigger and Tsunami Stereo need Stereo. WAV Trigger Pro takes either.',
+  rate: 'Sample rate: 44100 Hz.',
+  encoding: 'Encoding: Signed 16-bit PCM. Check Encoding again after choosing the format, because it may not change automatically.',
+  metadata: 'Click Edit metadata and clear every field.',
   floatNote: 'Note: Audacity works in 32-bit float internally, so the file only becomes 16-bit when you export it.',
 };
 const GENERAL_AUDACITY_STEPS = [
   AUDACITY_STEPS.open,
+  AUDACITY_STEPS.exportAudio,
+  AUDACITY_STEPS.format,
   AUDACITY_STEPS.channels,
   AUDACITY_STEPS.rate,
-  AUDACITY_STEPS.exportAudio,
-  AUDACITY_STEPS.metadata,
+  AUDACITY_STEPS.encoding,
   AUDACITY_STEPS.floatNote,
 ];
+
+// The names Audacity uses in its Channels setting: "Mono or Stereo".
+function audacityChannels(profile) {
+  return profile.channels.map((count) => (count === 1 ? 'Mono' : 'Stereo')).join(' or ');
+}
 
 // ---------------------------------------------------------------------------
 // Small helpers for reading bytes. WAV files store numbers little-endian
@@ -236,7 +247,7 @@ function checkStructure(bytes, walk, readWholeFile) {
         'metadata',
         'fail',
         `Found a large metadata block${named} before the audio. It is bigger than the first ${READ_BYTES / 1024}KB this checker reads.`,
-        `Re-export from Audacity and clear every field in Edit Metadata ${SEE_STEPS}.`
+        `Re-export from Audacity and click Edit metadata to clear every field ${SEE_STEPS}.`
       )
     );
   } else if (metadata.length > 0) {
@@ -245,7 +256,7 @@ function checkStructure(bytes, walk, readWholeFile) {
         'metadata',
         'fail',
         `Found metadata before the audio: ${describeChunks(metadata)}.`,
-        `Re-export from Audacity and clear every field in Edit Metadata ${SEE_STEPS}.`
+        `Re-export from Audacity and click Edit metadata to clear every field ${SEE_STEPS}.`
       )
     );
   } else {
@@ -323,7 +334,7 @@ function checkFormat(fmt, profile) {
         'bit-depth',
         'fail',
         `Bit depth is ${fmt.bitsPerSample}-bit, but it must be ${profile.bitsPerSample}-bit.`,
-        `Export from Audacity with Encoding set to Signed 16-bit PCM ${SEE_STEPS}.`
+        `Re-export from Audacity with Encoding set to Signed 16-bit PCM ${SEE_STEPS}.`
       )
     );
   }
@@ -337,7 +348,7 @@ function checkFormat(fmt, profile) {
         'sample-rate',
         'fail',
         `Sample rate is ${formatSampleRate(fmt.sampleRate)}, but it must be ${formatSampleRate(profile.sampleRate)}.`,
-        `Set the project rate to 44100 Hz in Audacity, then export ${SEE_STEPS}.`
+        `Re-export from Audacity with Sample rate set to 44100 Hz ${SEE_STEPS}.`
       )
     );
   }
@@ -352,7 +363,7 @@ function checkFormat(fmt, profile) {
         'channels',
         'fail',
         `File is ${channelName(fmt.channels)}, but ${profile.name} needs ${needed}.`,
-        `Convert the track to ${needed} in Audacity, then export ${SEE_STEPS}.`
+        `Re-export from Audacity with Channels set to ${audacityChannels(profile)} ${SEE_STEPS}.`
       )
     );
   }
@@ -375,11 +386,18 @@ function audacitySteps(checks, profile) {
   // Only a wrong file name: no need to re-export.
   if (failed.size === 1 && failed.has('extension')) return [];
 
-  const steps = [AUDACITY_STEPS.open];
-  if (failed.has('channels')) {
-    steps.push(`Convert the track to ${profile.channels.map(channelName).join(' or ')}, as ${profile.name} requires.`);
-  }
-  steps.push(AUDACITY_STEPS.rate, AUDACITY_STEPS.exportAudio, AUDACITY_STEPS.metadata);
+  // The main export steps, shown on every red light. Channels names what
+  // this product needs.
+  const steps = [
+    AUDACITY_STEPS.open,
+    AUDACITY_STEPS.exportAudio,
+    AUDACITY_STEPS.format,
+    `Channels: ${audacityChannels(profile)}, as ${profile.name} requires.`,
+    AUDACITY_STEPS.rate,
+    AUDACITY_STEPS.encoding,
+  ];
+  // Only when metadata was found before the audio.
+  if (failed.has('metadata')) steps.push(AUDACITY_STEPS.metadata);
   if (failed.has('bit-depth') || failed.has('format-code')) steps.push(AUDACITY_STEPS.floatNote);
   if (failed.has('extension')) steps.push('Make sure the file name ends in .wav.');
   return steps;
@@ -491,6 +509,7 @@ if (typeof module !== 'undefined') {
     READ_BYTES,
     CHECKS,
     GENERAL_AUDACITY_STEPS,
+    AUDACITY_VERSION_NOTE,
     validateFile,
     hasCanonicalHeader,
     walkChunks,

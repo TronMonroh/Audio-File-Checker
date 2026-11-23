@@ -10,6 +10,7 @@ const {
   READ_BYTES,
   CHECKS,
   GENERAL_AUDACITY_STEPS,
+  AUDACITY_VERSION_NOTE,
   validateFile,
   hasCanonicalHeader,
   formatSampleRate,
@@ -301,29 +302,76 @@ test('every red reason has a fix, and fixes point to the Audacity steps', () => 
   }
 });
 
-test('Audacity steps are tailored to what failed', () => {
-  const monoOnWavTrigger = checkTestFile('canonical_mono.wav', 'wav-trigger').audacitySteps;
-  assert.ok(monoOnWavTrigger.some((s) => /Convert the track to stereo/.test(s)));
+// The main export steps from CLAUDE.md, shown on every red light that needs
+// a re-export (tested by Seth with Audacity 4.0.2).
+const MAIN_EXPORT_STEPS = [
+  /File > Export audio/,
+  /Format: WAV \(Microsoft\)/,
+  /Channels: (Mono|Stereo|Mono or Stereo)/,
+  /Sample rate: 44100 Hz/,
+  /Encoding: Signed 16-bit PCM\. Check Encoding again after choosing the format, because it may not change automatically\./,
+];
 
-  const metadataOnly = checkTestFile('list_before_fmt.wav', 'wav-trigger').audacitySteps;
-  assert.ok(!metadataOnly.some((s) => /Convert the track/.test(s)));
-  assert.ok(metadataOnly.some((s) => /Edit Metadata/.test(s)));
+test('every red light that needs a re-export shows the main export steps', () => {
+  for (const entry of manifest.files) {
+    for (const productId of ALL_PRODUCTS) {
+      const result = checkTestFile(entry.file, productId);
+      if (result.result === 'red' && failedIds(result).join() !== 'extension') {
+        const text = result.audacitySteps.join('\n');
+        for (const step of MAIN_EXPORT_STEPS) {
+          assert.match(text, step, `${entry.file} / ${productId}`);
+        }
+      }
+    }
+  }
+});
 
-  const float = checkTestFile('float32.wav', 'wav-trigger').audacitySteps;
-  assert.ok(float.some((s) => /32-bit float internally/.test(s)));
+test('Channels names what the product needs', () => {
+  const steps = (file, productId) => checkTestFile(file, productId).audacitySteps;
+  assert.ok(steps('canonical_mono.wav', 'wav-trigger').includes('Channels: Stereo, as WAV Trigger requires.'));
+  assert.ok(steps('canonical_stereo.wav', 'tsunami-mono').includes('Channels: Mono, as Tsunami Mono requires.'));
+  assert.ok(steps('48khz.wav', 'wav-trigger-pro').includes('Channels: Mono or Stereo, as WAV Trigger Pro requires.'));
+});
 
+test('Edit metadata is shown only when metadata was found before the audio', () => {
+  for (const entry of manifest.files) {
+    for (const productId of ALL_PRODUCTS) {
+      const result = checkTestFile(entry.file, productId);
+      const shown = result.audacitySteps.includes('Click Edit metadata and clear every field.');
+      assert.equal(shown, failedIds(result).includes('metadata'), `${entry.file} / ${productId}`);
+    }
+  }
+  // Checked directly too, so the test above can't pass by never showing it.
+  assert.ok(checkTestFile('list_before_fmt.wav', 'wav-trigger').audacitySteps.includes('Click Edit metadata and clear every field.'));
+  assert.ok(checkTestFile('large_metadata_block.wav', 'wav-trigger').audacitySteps.includes('Click Edit metadata and clear every field.'));
+  assert.ok(!checkTestFile('48khz.wav', 'wav-trigger').audacitySteps.some((s) => /metadata/i.test(s)));
+});
+
+test('the 32-bit float note is shown for bit depth and encoding problems', () => {
+  assert.ok(checkTestFile('float32.wav', 'wav-trigger').audacitySteps.some((s) => /32-bit float internally/.test(s)));
+  assert.ok(!checkTestFile('48khz.wav', 'wav-trigger').audacitySteps.some((s) => /32-bit float/.test(s)));
   assert.deepEqual(checkTestFile('canonical_stereo.wav', 'wav-trigger').audacitySteps, []);
 });
 
 test('the general Audacity steps match CLAUDE.md', () => {
   const text = GENERAL_AUDACITY_STEPS.join('\n');
   assert.match(text, /Open the file in Audacity/);
-  assert.match(text, /44100 Hz/);
-  assert.match(text, /File > Export Audio/);
-  assert.match(text, /WAV \(Microsoft\)/);
-  assert.match(text, /Signed 16-bit PCM/);
-  assert.match(text, /Edit Metadata/);
+  for (const step of MAIN_EXPORT_STEPS) assert.match(text, step);
   assert.match(text, /32-bit float/);
+  // Audacity 4 writes no metadata before the audio, so Edit metadata is only
+  // shown in a red result where metadata was found.
+  assert.doesNotMatch(text, /Edit metadata/i);
+  assert.equal(AUDACITY_VERSION_NOTE, 'These steps were tested with Audacity 4.0.2.');
+});
+
+test('the removed steps are gone from every step and fix', () => {
+  for (const entry of manifest.files) {
+    for (const productId of ALL_PRODUCTS) {
+      const result = checkTestFile(entry.file, productId);
+      const text = [...result.audacitySteps, ...result.reasons.map((r) => r.fix), ...GENERAL_AUDACITY_STEPS].join('\n');
+      assert.doesNotMatch(text, /convert the track|project rate/i, `${entry.file} / ${productId}`);
+    }
+  }
 });
 
 test('detected values are reported for green and red', () => {

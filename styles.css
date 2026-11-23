@@ -223,12 +223,62 @@ button {
   margin-left: 1rem !important;
 }
 
-details {
-  margin-top: 1.25rem;
+.tested-with {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
-summary {
+/* "Show all checks": a plain outlined button, so it is easy to find but
+   quieter than the filled green or red light above it. */
+.all-checks {
+  margin-top: 1.5rem;
+}
+
+.all-checks summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--background);
+  border: 1px solid var(--muted);
+  border-radius: 6px;
   cursor: pointer;
+  list-style: none; /* hide the browser's own triangle */
+}
+
+/* Safari draws its own triangle this way instead. */
+.all-checks summary::-webkit-details-marker {
+  display: none;
+}
+
+.all-checks summary:hover {
+  background: var(--panel);
+}
+
+/* The arrow: two borders of a small square, turned to point right.
+   When the section is open it turns to point down. */
+.all-checks summary::before {
+  content: "";
+  width: 0.45em;
+  height: 0.45em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.all-checks[open] summary::before {
+  transform: rotate(45deg);
+}
+
+/* People who ask their system for less motion get no animation. */
+@media (prefers-reduced-motion: reduce) {
+  .all-checks summary::before {
+    transition: none;
+  }
 }
 
 .table-wrap {
