@@ -184,6 +184,7 @@ v1 does **not** show a "What this does not check" section on the page (Seth, 202
 * Seth is learning. Work in small steps, and after each change explain briefly what changed and why.
 * Never add a dependency, framework, build tool or network call without asking first.
 * Keep `validator.js` free of DOM code so it stays testable.
+* Update `ARCHITECTURE.md` whenever files, functions or the data flow change, in the same commit. It describes only what the code actually does.
 * Never invent a rule. Everything in "The rule" and "Product profiles" is confirmed by Jamie; anything else needs Seth's approval.
 * Add a test file and a manifest entry for every rule.
 * Keep the UI plain and readable. Accessibility: labels on inputs, keyboard usable, and the red/green result must also be stated in words, never by color alone.
